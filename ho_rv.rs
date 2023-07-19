@@ -115,36 +115,38 @@ impl RegisterFile {
 	}
 }
 
-#[derive(Default)]
 struct Memory {
-	mem: [u8; 32]
+	mem: [u8; 4096],
+	code: Vec<u8>,
 }
 
 impl Memory {
 	fn read_byte(&self, index: usize) -> u32 {
-		return self.mem[index] as u32;
+		if index >= 0x1000_0000 {
+			return self.mem[index] as u32;
+		}
+		return self.code[index] as u32;
 	}
 	fn read_halfword(&self, index: usize) -> u32 {
-		return ((self.mem[index+1] as u32) << 8) + self.mem[index] as u32;
+		return (self.read_byte(index + 1) << 8) + self.read_byte(index);
 	}
 	fn read_word(&self, index: usize) -> u32 {
-		return ((self.mem[index+3] as u32) << 24) + 
-			((self.mem[index+2] as u32) << 16) + 
-			((self.mem[index+1] as u32) << 8) + 
-			((self.mem[index+0] as u32) << 0);
+		return (self.read_halfword(index + 2) << 16) + self.read_halfword(index);
 	}
 	fn write_byte(&mut self, index: usize, value: u32) {
-		self.mem[index] = (value & 0xFF) as u8;
+		if index == 0x2000_0000 {
+			print!("{:}", char::from_u32(value).unwrap());
+		} else {
+			self.mem[index] = (value & 0xFF) as u8;
+		}
 	}
 	fn write_halfword(&mut self, index: usize, value: u32) {
-		self.mem[index] = (value & 0xFF) as u8;
-		self.mem[index+1] = ((value >> 8) & 0xFF) as u8;
+		self.write_byte(index, value);
+		self.write_byte(index + 1, value >> 8);
 	}
 	fn write_word(&mut self, index: usize, value: u32) {
-		self.mem[index+0] = ((value >> 0) & 0xFF) as u8;
-		self.mem[index+1] = ((value >> 8) & 0xFF) as u8;
-		self.mem[index+2] = ((value >> 16) & 0xFF) as u8;
-		self.mem[index+3] = ((value >> 24) & 0xFF) as u8;
+		self.write_halfword(index, value);
+		self.write_halfword(index + 2, value >> 16);
 	}
 }
 
@@ -371,7 +373,6 @@ fn get_instruction(instruction: u32) -> Instruction {
 		},
 		OpCode::AUIPC => {
 			/* U Type */
-			println!("AUIPC");
 			let _rd_index: RDindex = rd(instruction);
 			let _u_imm: Uimmediate = immediate_u(instruction);
 			return Instruction::AUIPC(_rd_index, _u_imm);
@@ -790,31 +791,40 @@ fn exec(register_file: &mut RegisterFile, memory: &mut Memory, instruction: Inst
 			todo!();
 		},
 		Instruction::ECALL() => {
-			todo!();
+			println!("ECALL (not implemented)");
 		},
 		Instruction::EBREAK() => {
-			todo!();
+			println!("EBREAK (not implemented)");
 		},
 	}
 	register_file.pc += 4;
 }
 
+fn fetch_instruction(code: &Vec<u8>, pc: u32) -> u32 {
+	let _index = pc as usize;
+	((code[_index+3] as u32) << 24) + 
+	((code[_index+2] as u32) << 16) + 
+	((code[_index+1] as u32) << 8) + 
+	((code[_index+0] as u32) << 0)
+}
+
 fn main() {
 	let mut register_file: RegisterFile = RegisterFile::default();
-	register_file.write(2, 32);
-	let mut memory: Memory = Memory::default();
-	let code = fs::read("test.hex").unwrap();
+	register_file.write(2, 4096);
+	let mut memory: Memory = Memory { mem: [0; 4096], code: fs::read("test.hex").unwrap() };
 
-	for _i in 0..1000 {
-		let _tmp = {
-			let _index = register_file.pc as usize;
-			((code[_index+3] as u32) << 24) + 
-			((code[_index+2] as u32) << 16) + 
-			((code[_index+1] as u32) << 8) + 
-			((code[_index+0] as u32) << 0)
-		};
-		let inst = get_instruction(_tmp);
-		println!("PC: 0x{:X} Instruction: {:?}, {:}, {:}", register_file.pc, inst, register_file.read(14), register_file.read(14));
+	loop {
+		let inst = get_instruction(memory.read_word(register_file.pc as usize));
+		let inst_ = get_instruction(memory.read_word(register_file.pc as usize));
+		//println!("PC: 0x{:X} Instruction: {:?}, {:}, {:}", register_file.pc, inst, register_file.read(14), register_file.read(14));
 		exec(&mut register_file, &mut memory, inst);
+
+		if let Instruction::ECALL() = inst_ {
+			break;
+		}
+		if let Instruction::EBREAK() = inst_ {
+			break;
+		}
 	}
+	println!("Done!");
 }
