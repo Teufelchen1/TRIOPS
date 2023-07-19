@@ -1,6 +1,5 @@
-use std::fs;
 use std::env;
-
+use std::fs;
 
 mod decoder;
 use decoder::{decode, Instruction};
@@ -9,15 +8,13 @@ mod executer;
 use executer::exec;
 
 mod system;
-use system::{RegisterFile, Memory};
+use system::{Memory, RegisterFile};
 
 fn main() {
     let args: Vec<String> = env::args().collect();
     let file_name: String = {
         match args.len() {
-            2 => {
-                args[1].parse().unwrap()
-            },
+            2 => args[1].parse().unwrap(),
             _ => {
                 panic!("Usage: {:} FILE", args[0].parse::<String>().unwrap());
             }
