@@ -1,4 +1,6 @@
 use std::fs;
+use std::env;
+
 
 mod decoder;
 use decoder::{decode, Instruction};
@@ -10,8 +12,20 @@ mod system;
 use system::{RegisterFile, Memory};
 
 fn main() {
+    let args: Vec<String> = env::args().collect();
+    let file_name: String = {
+        match args.len() {
+            2 => {
+                args[1].parse().unwrap()
+            },
+            _ => {
+                panic!("Usage: {:} FILE", args[0].parse::<String>().unwrap());
+            }
+        }
+    };
+
     let mut register_file: RegisterFile = RegisterFile::default();
-    let mut memory: Memory = Memory::default(fs::read("test.hex").unwrap()); // Memory { mem: [0; 4096], code: fs::read("test.hex").unwrap() };
+    let mut memory: Memory = Memory::default(fs::read(file_name).unwrap());
     register_file.write(2, (memory.ram_base + memory.ram.len()) as u32);
     register_file.pc = memory.rom_base as u32;
 
