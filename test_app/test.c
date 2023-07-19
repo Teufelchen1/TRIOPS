@@ -1,7 +1,5 @@
-#define OUT_MEMORY_ADDR 0x20000000
+#define IO_ADDR (0x60000000)
 #define STRING "Hello world!\n"
-
-volatile char * out = (char *) OUT_MEMORY_ADDR;
 
 void _start(void) __attribute__ ((section (".entry")));
 void main(void);
@@ -12,7 +10,7 @@ void main(void) {
     unsigned int k = 20;
     for(unsigned int i = 0; i < sizeof(STRING); i++) {
         k += 2;
-        *out = str[i];
+        *(char *)IO_ADDR = str[i];
     }
     print("WoW!\n", 5);
     if(k > 40)
@@ -27,6 +25,6 @@ void _start() {
 
 void print(char *str, unsigned int len) {
     for(unsigned int i = 0; i < len; i++) {
-        *out = str[i];
+        *(char *)IO_ADDR = str[i];
     }
 }
