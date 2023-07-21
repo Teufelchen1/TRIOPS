@@ -16,11 +16,11 @@ type Funct3 = u32;
 type Funct7 = u32;
 
 fn immediate_i(instruction: u32) -> Iimmediate {
-    return (instruction >> 20) as Iimmediate;
+    (instruction >> 20) as Iimmediate
 }
 
 fn immediate_s(instruction: u32) -> Simmediate {
-    return ((instruction >> 25) << 5) | ((instruction >> 7) & 0b1_1111) as Simmediate;
+    ((instruction >> 25) << 5) | ((instruction >> 7) & 0b1_1111) as Simmediate
 }
 
 fn immediate_b(instruction: u32) -> Bimmediate {
@@ -28,11 +28,11 @@ fn immediate_b(instruction: u32) -> Bimmediate {
     let _10_5 = (instruction >> 25) & 0b11_1111;
     let _11 = (instruction >> 7) & 0b1;
     let _12 = (instruction >> 31) & 0b1;
-    return ((_12 << 12) | (_11 << 11) | (_10_5 << 5) | (_4_1 << 1)) as Bimmediate;
+    ((_12 << 12) | (_11 << 11) | (_10_5 << 5) | (_4_1 << 1)) as Bimmediate
 }
 
 fn immediate_u(instruction: u32) -> Uimmediate {
-    return (instruction & 0b1111_1111_1111_1111_1111_0000_0000_0000) as Uimmediate;
+    (instruction & 0b1111_1111_1111_1111_1111_0000_0000_0000) as Uimmediate
 }
 
 fn immediate_j(instruction: u32) -> Jimmediate {
@@ -40,27 +40,27 @@ fn immediate_j(instruction: u32) -> Jimmediate {
     let _11 = (instruction >> 20) & 0b1;
     let _19_12 = (instruction >> 12) & 0b1111_1111;
     let _20 = (instruction >> 31) & 0b1;
-    return ((_20 << 20) | (_19_12 << 12) | (_11 << 11) | (_10_1 << 1)) as Jimmediate;
+    ((_20 << 20) | (_19_12 << 12) | (_11 << 11) | (_10_1 << 1)) as Jimmediate
 }
 
 fn rs1(instruction: u32) -> RS1index {
-    return ((instruction >> 15) & 0b1_1111) as RS1index;
+    ((instruction >> 15) & 0b1_1111) as RS1index
 }
 
 fn rs2(instruction: u32) -> RS2index {
-    return ((instruction >> 20) & 0b1_1111) as RS2index;
+    ((instruction >> 20) & 0b1_1111) as RS2index
 }
 
 fn rd(instruction: u32) -> RDindex {
-    return ((instruction >> 7) & 0b1_1111) as RDindex;
+    ((instruction >> 7) & 0b1_1111) as RDindex
 }
 
 fn funct3(instruction: u32) -> Funct3 {
-    return ((instruction >> 12) & 0b111) as Funct3;
+    ((instruction >> 12) & 0b111) as Funct3
 }
 
 fn funct7(instruction: u32) -> Funct7 {
-    return ((instruction >> 25) & 0b111_1111) as Funct7;
+    ((instruction >> 25) & 0b111_1111) as Funct7
 }
 
 macro_rules! isBaseInstructionSet {
@@ -119,7 +119,7 @@ pub enum OpCode {
 
 #[derive(Debug)]
 pub enum Instruction {
-	/* RV32I */
+    /* RV32I */
     LUI(RDindex, Uimmediate),
     AUIPC(RDindex, Uimmediate),
     JAL(RDindex, Jimmediate),
@@ -179,77 +179,77 @@ pub enum Instruction {
 }
 
 impl Instruction {
-	pub fn is_zicsr(&self) -> bool {
-		match self {
-			Self::CSRRCI(..) => true,
-			Self::CSRRW(..) => true,
-			Self::CSRRS(..) => true,
-			Self::CSRRC(..) => true,
-			Self::CSRRWI(..) => true,
-			Self::CSRRSI(..) => true,
-			Self::CSRRCI(..) => true,
-			_ => false,
-		}
-	}
-	pub fn is_m(&self) -> bool {
-		match self {
-			Self::MUL(..) => true,
-			Self::MULH(..) => true,
-			Self::MULHSU(..) => true,
-			Self::MULHU(..) => true,
-			Self::DIV(..) => true,
-			Self::DIVU(..) => true,
-			Self::REM(..) => true,
-			Self::REMU(..) => true,
-			_ => false,
-		}
-	}
+    pub fn is_zicsr(&self) -> bool {
+        matches!(
+            self,
+            Self::CSRRCI(..)
+                | Self::CSRRW(..)
+                | Self::CSRRS(..)
+                | Self::CSRRC(..)
+                | Self::CSRRWI(..)
+                | Self::CSRRSI(..)
+                | Self::CSRRCI(..)
+        )
+    }
+    pub fn is_m(&self) -> bool {
+        matches!(
+            self,
+            Self::MUL(..)
+                | Self::MULH(..)
+                | Self::MULHSU(..)
+                | Self::MULHU(..)
+                | Self::DIV(..)
+                | Self::DIVU(..)
+                | Self::REM(..)
+                | Self::REMU(..)
+        )
+    }
 }
 
 fn get_opcode(instruction: u32) -> OpCode {
     match OpUpperBits!(instruction) {
         0b00 => match OpLowerBits!(instruction) {
-            0b000 => return OpCode::LOAD,
-            0b001 => return OpCode::LOADFP,
-            0b010 => return OpCode::CUSTOM0,
-            0b011 => return OpCode::MISCMEM,
-            0b100 => return OpCode::OPIMM,
-            0b101 => return OpCode::AUIPC,
-            0b110 => return OpCode::OPIMM32,
-            0b111 => return OpCode::LEN48,
+            0b000 => OpCode::LOAD,
+            0b001 => OpCode::LOADFP,
+            0b010 => OpCode::CUSTOM0,
+            0b011 => OpCode::MISCMEM,
+            0b100 => OpCode::OPIMM,
+            0b101 => OpCode::AUIPC,
+            0b110 => OpCode::OPIMM32,
+            0b111 => OpCode::LEN48,
             _ => panic!("Shouldn't happen"),
         },
         0b01 => match OpLowerBits!(instruction) {
-            0b000 => return OpCode::STORE,
-            0b001 => return OpCode::STOREFP,
-            0b010 => return OpCode::CUSTOM1,
-            0b011 => return OpCode::AMO,
-            0b100 => return OpCode::OP,
-            0b101 => return OpCode::LUI,
-            0b110 => return OpCode::OP32,
-            0b111 => return OpCode::LEN64,
+            0b000 => OpCode::STORE,
+            0b001 => OpCode::STOREFP,
+            0b010 => OpCode::CUSTOM1,
+            0b011 => OpCode::AMO,
+            0b100 => OpCode::OP,
+            0b101 => OpCode::LUI,
+            0b110 => OpCode::OP32,
+            0b111 => OpCode::LEN64,
             _ => panic!("Shouldn't happen"),
         },
         0b10 => match OpLowerBits!(instruction) {
-            0b000 => return OpCode::MADD,
-            0b001 => return OpCode::MSUB,
-            0b010 => return OpCode::NMSUB,
-            0b011 => return OpCode::NMADD,
-            0b100 => return OpCode::OPFP,
-            0b101 => return OpCode::RESERVED1,
-            0b110 => return OpCode::CUSTOM2,
-            0b111 => return OpCode::LEN482,
+            0b000 => OpCode::MADD,
+            0b001 => OpCode::MSUB,
+            0b010 => OpCode::NMSUB,
+            0b011 => OpCode::NMADD,
+            0b100 => OpCode::OPFP,
+            0b101 => OpCode::RESERVED1,
+            0b110 => OpCode::CUSTOM2,
+            0b111 => OpCode::LEN482,
             _ => panic!("Shouldn't happen"),
         },
         0b11 => match OpLowerBits!(instruction) {
-            0b000 => return OpCode::BRANCH,
-            0b001 => return OpCode::JALR,
-            0b010 => return OpCode::RESERVED2,
-            0b011 => return OpCode::JAL,
-            0b100 => return OpCode::SYSTEM,
-            0b101 => return OpCode::RESERVED3,
-            0b110 => return OpCode::CUSTOM3,
-            0b111 => return OpCode::LEN80,
+            0b000 => OpCode::BRANCH,
+            0b001 => OpCode::JALR,
+            0b010 => OpCode::RESERVED2,
+            0b011 => OpCode::JAL,
+            0b100 => OpCode::SYSTEM,
+            0b101 => OpCode::RESERVED3,
+            0b110 => OpCode::CUSTOM3,
+            0b111 => OpCode::LEN80,
             _ => panic!("Shouldn't happen"),
         },
         _ => panic!("Ahhhhhh: {:?}", OpUpperBits!(instruction)),
@@ -268,21 +268,11 @@ pub fn decode(instruction: u32) -> Instruction {
             let _rs1: RS1index = rs1(instruction);
             let _i_imm: Iimmediate = immediate_i(instruction);
             match funct3(instruction) {
-                0b000 => {
-                    return Instruction::LB(_rd_index, _rs1, _i_imm);
-                }
-                0b001 => {
-                    return Instruction::LH(_rd_index, _rs1, _i_imm);
-                }
-                0b010 => {
-                    return Instruction::LW(_rd_index, _rs1, _i_imm);
-                }
-                0b100 => {
-                    return Instruction::LBU(_rd_index, _rs1, _i_imm);
-                }
-                0b101 => {
-                    return Instruction::LHU(_rd_index, _rs1, _i_imm);
-                }
+                0b000 => Instruction::LB(_rd_index, _rs1, _i_imm),
+                0b001 => Instruction::LH(_rd_index, _rs1, _i_imm),
+                0b010 => Instruction::LW(_rd_index, _rs1, _i_imm),
+                0b100 => Instruction::LBU(_rd_index, _rs1, _i_imm),
+                0b101 => Instruction::LHU(_rd_index, _rs1, _i_imm),
                 _ => {
                     panic!("Invalid funct3 I-Type");
                 }
@@ -294,7 +284,7 @@ pub fn decode(instruction: u32) -> Instruction {
             let _rd_index: RDindex = rd(instruction);
             let _rs1: RS1index = rs1(instruction);
             let _i_imm: Iimmediate = immediate_i(instruction);
-            return Instruction::FENCE(_rd_index, _rs1, _i_imm);
+            Instruction::FENCE(_rd_index, _rs1, _i_imm)
         }
         OpCode::OPIMM => {
             /* All OPIMM are I-Type instructions */
@@ -302,32 +292,18 @@ pub fn decode(instruction: u32) -> Instruction {
             let _rs1: RS1index = rs1(instruction);
             let _i_imm: Iimmediate = immediate_i(instruction);
             match funct3(instruction) {
-                0b000 => {
-                    return Instruction::ADDI(_rd_index, _rs1, _i_imm);
-                }
-                0b010 => {
-                    return Instruction::SLTI(_rd_index, _rs1, _i_imm);
-                }
-                0b011 => {
-                    return Instruction::SLTIU(_rd_index, _rs1, _i_imm);
-                }
-                0b100 => {
-                    return Instruction::XORI(_rd_index, _rs1, _i_imm);
-                }
-                0b110 => {
-                    return Instruction::ORI(_rd_index, _rs1, _i_imm);
-                }
-                0b111 => {
-                    return Instruction::ANDI(_rd_index, _rs1, _i_imm);
-                }
-                0b001 => {
-                    return Instruction::SLLI(_rd_index, _rs1, _i_imm);
-                }
+                0b000 => Instruction::ADDI(_rd_index, _rs1, _i_imm),
+                0b010 => Instruction::SLTI(_rd_index, _rs1, _i_imm),
+                0b011 => Instruction::SLTIU(_rd_index, _rs1, _i_imm),
+                0b100 => Instruction::XORI(_rd_index, _rs1, _i_imm),
+                0b110 => Instruction::ORI(_rd_index, _rs1, _i_imm),
+                0b111 => Instruction::ANDI(_rd_index, _rs1, _i_imm),
+                0b001 => Instruction::SLLI(_rd_index, _rs1, _i_imm),
                 0b101 => {
                     if _i_imm == 0 {
-                        return Instruction::SRLI(_rd_index, _rs1, _i_imm);
+                        Instruction::SRLI(_rd_index, _rs1, _i_imm)
                     } else {
-                        return Instruction::SRAI(_rd_index, _rs1, _i_imm);
+                        Instruction::SRAI(_rd_index, _rs1, _i_imm)
                     }
                 }
                 _ => {
@@ -339,7 +315,7 @@ pub fn decode(instruction: u32) -> Instruction {
             /* U Type */
             let _rd_index: RDindex = rd(instruction);
             let _u_imm: Uimmediate = immediate_u(instruction);
-            return Instruction::AUIPC(_rd_index, _u_imm);
+            Instruction::AUIPC(_rd_index, _u_imm)
         }
         OpCode::OPIMM32 => todo!(),
         OpCode::LEN48 => todo!(),
@@ -349,15 +325,9 @@ pub fn decode(instruction: u32) -> Instruction {
             let _rs2: RS2index = rs2(instruction);
             let _s_imm: Simmediate = immediate_s(instruction);
             match funct3(instruction) {
-                0b000 => {
-                    return Instruction::SB(_rs1, _rs2, _s_imm);
-                }
-                0b001 => {
-                    return Instruction::SH(_rs1, _rs2, _s_imm);
-                }
-                0b010 => {
-                    return Instruction::SW(_rs1, _rs2, _s_imm);
-                }
+                0b000 => Instruction::SB(_rs1, _rs2, _s_imm),
+                0b001 => Instruction::SH(_rs1, _rs2, _s_imm),
+                0b010 => Instruction::SW(_rs1, _rs2, _s_imm),
                 _ => {
                     panic!("Invalid funct3 S-Type");
                 }
@@ -375,60 +345,60 @@ pub fn decode(instruction: u32) -> Instruction {
             let _is_m_extension = funct7(instruction) & 0b1 == 1;
             match funct3(instruction) {
                 0b000 => {
-                	if _is_m_extension {
-                		return Instruction::MUL(_rd_index, _rs1, _rs2);
-                	}
+                    if _is_m_extension {
+                        return Instruction::MUL(_rd_index, _rs1, _rs2);
+                    }
                     if funct7(instruction) == 0 {
-                        return Instruction::ADD(_rd_index, _rs1, _rs2);
+                        Instruction::ADD(_rd_index, _rs1, _rs2)
                     } else {
-                        return Instruction::SUB(_rd_index, _rs1, _rs2);
+                        Instruction::SUB(_rd_index, _rs1, _rs2)
                     }
                 }
                 0b001 => {
-                	if _is_m_extension {
-                		return Instruction::MULH(_rd_index, _rs1, _rs2);
-                	}
-                    return Instruction::SLL(_rd_index, _rs1, _rs2);
+                    if _is_m_extension {
+                        return Instruction::MULH(_rd_index, _rs1, _rs2);
+                    }
+                    Instruction::SLL(_rd_index, _rs1, _rs2)
                 }
                 0b010 => {
-                	if _is_m_extension {
-                		return Instruction::MULHSU(_rd_index, _rs1, _rs2);
-                	}
-                    return Instruction::SLT(_rd_index, _rs1, _rs2);
+                    if _is_m_extension {
+                        return Instruction::MULHSU(_rd_index, _rs1, _rs2);
+                    }
+                    Instruction::SLT(_rd_index, _rs1, _rs2)
                 }
                 0b011 => {
-                	if _is_m_extension {
-                		return Instruction::MULHU(_rd_index, _rs1, _rs2);
-                	}
-                    return Instruction::SLTU(_rd_index, _rs1, _rs2);
+                    if _is_m_extension {
+                        return Instruction::MULHU(_rd_index, _rs1, _rs2);
+                    }
+                    Instruction::SLTU(_rd_index, _rs1, _rs2)
                 }
                 0b100 => {
-                	if _is_m_extension {
-                		return Instruction::DIV(_rd_index, _rs1, _rs2);
-                	}
-                    return Instruction::XOR(_rd_index, _rs1, _rs2);
+                    if _is_m_extension {
+                        return Instruction::DIV(_rd_index, _rs1, _rs2);
+                    }
+                    Instruction::XOR(_rd_index, _rs1, _rs2)
                 }
                 0b101 => {
-                	if _is_m_extension {
-                		return Instruction::DIVU(_rd_index, _rs1, _rs2);
-                	}
+                    if _is_m_extension {
+                        return Instruction::DIVU(_rd_index, _rs1, _rs2);
+                    }
                     if funct7(instruction) == 0 {
-                        return Instruction::SRL(_rd_index, _rs1, _rs2);
+                        Instruction::SRL(_rd_index, _rs1, _rs2)
                     } else {
-                        return Instruction::SRA(_rd_index, _rs1, _rs2);
+                        Instruction::SRA(_rd_index, _rs1, _rs2)
                     }
                 }
                 0b110 => {
-                	if _is_m_extension {
-                		return Instruction::REM(_rd_index, _rs1, _rs2);
-                	}
-                    return Instruction::OR(_rd_index, _rs1, _rs2);
+                    if _is_m_extension {
+                        return Instruction::REM(_rd_index, _rs1, _rs2);
+                    }
+                    Instruction::OR(_rd_index, _rs1, _rs2)
                 }
                 0b111 => {
-                	if _is_m_extension {
-                		return Instruction::REMU(_rd_index, _rs1, _rs2);
-                	}
-                    return Instruction::AND(_rd_index, _rs1, _rs2);
+                    if _is_m_extension {
+                        return Instruction::REMU(_rd_index, _rs1, _rs2);
+                    }
+                    Instruction::AND(_rd_index, _rs1, _rs2)
                 }
                 _ => {
                     panic!("Invalid funct3 R-Type");
@@ -439,7 +409,7 @@ pub fn decode(instruction: u32) -> Instruction {
             /* U Type */
             let _rd_index: RDindex = rd(instruction);
             let _u_imm: Uimmediate = immediate_u(instruction);
-            return Instruction::LUI(_rd_index, _u_imm);
+            Instruction::LUI(_rd_index, _u_imm)
         }
         OpCode::OP32 => todo!(),
         OpCode::LEN64 => todo!(),
@@ -457,24 +427,12 @@ pub fn decode(instruction: u32) -> Instruction {
             let _rs2: RS2index = rs2(instruction);
             let _b_imm: Bimmediate = immediate_b(instruction);
             match funct3(instruction) {
-                0b000 => {
-                    return Instruction::BEQ(_rs1, _rs2, _b_imm);
-                }
-                0b001 => {
-                    return Instruction::BNE(_rs1, _rs2, _b_imm);
-                }
-                0b100 => {
-                    return Instruction::BLT(_rs1, _rs2, _b_imm);
-                }
-                0b101 => {
-                    return Instruction::BGE(_rs1, _rs2, _b_imm);
-                }
-                0b110 => {
-                    return Instruction::BLTU(_rs1, _rs2, _b_imm);
-                }
-                0b111 => {
-                    return Instruction::BGEU(_rs1, _rs2, _b_imm);
-                }
+                0b000 => Instruction::BEQ(_rs1, _rs2, _b_imm),
+                0b001 => Instruction::BNE(_rs1, _rs2, _b_imm),
+                0b100 => Instruction::BLT(_rs1, _rs2, _b_imm),
+                0b101 => Instruction::BGE(_rs1, _rs2, _b_imm),
+                0b110 => Instruction::BLTU(_rs1, _rs2, _b_imm),
+                0b111 => Instruction::BGEU(_rs1, _rs2, _b_imm),
                 _ => {
                     panic!("Invalid funct3 B-Type");
                 }
@@ -485,52 +443,45 @@ pub fn decode(instruction: u32) -> Instruction {
             let _rd_index: RDindex = rd(instruction);
             let _rs1: RS1index = rs1(instruction);
             let _i_imm: Iimmediate = immediate_i(instruction);
-            return Instruction::JALR(_rd_index, _rs1, _i_imm);
+            Instruction::JALR(_rd_index, _rs1, _i_imm)
         }
         OpCode::RESERVED2 => todo!(),
         OpCode::JAL => {
             let _rd_index: RDindex = rd(instruction);
             let _j_imm: Jimmediate = immediate_j(instruction);
-            return Instruction::JAL(_rd_index, _j_imm);
+            Instruction::JAL(_rd_index, _j_imm)
         }
         OpCode::SYSTEM => {
-        	/* I-Type instruction */
+            /* I-Type instruction */
             let _rd_index: RDindex = rd(instruction);
             let _rs1: RS1index = rs1(instruction);
             let _i_imm: Iimmediate = immediate_i(instruction);
-        	match funct3(instruction) {
+            match funct3(instruction) {
                 0b000 => {
-		            if _i_imm == 0 {
-		                return Instruction::ECALL();
-		            }
-		            return Instruction::EBREAK();
-		        },
-		        0b001 => {
-		        	return Instruction::CSRRW(_rd_index, _rs1, _i_imm);
-		        },
-		        0b010 => {
-		        	return Instruction::CSRRS(_rd_index, _rs1, _i_imm);
-		        },
-		        0b011 => {
-		        	return Instruction::CSRRC(_rd_index, _rs1, _i_imm);
-		        },
-		        0b101 => {
-		        	/* This instruction repurposes _rs1 as immediate */
-		        	return Instruction::CSRRWI(_rd_index, _rs1, _i_imm);
-		        },
-		        0b110 => {
-		        	/* This instruction repurposes _rs1 as immediate */
-		        	return Instruction::CSRRSI(_rd_index, _rs1, _i_imm);
-		        },
-		        0b111 => {
-		        	/* This instruction repurposes _rs1 as immediate */
-		        	return Instruction::CSRRCI(_rd_index, _rs1, _i_imm);
-		        },
-		        _ => {
-		        	panic!("Invalid funct3 I-Type");
-		        }
-		    }
-
+                    if _i_imm == 0 {
+                        return Instruction::ECALL();
+                    }
+                    Instruction::EBREAK()
+                }
+                0b001 => Instruction::CSRRW(_rd_index, _rs1, _i_imm),
+                0b010 => Instruction::CSRRS(_rd_index, _rs1, _i_imm),
+                0b011 => Instruction::CSRRC(_rd_index, _rs1, _i_imm),
+                0b101 => {
+                    /* This instruction repurposes _rs1 as immediate */
+                    Instruction::CSRRWI(_rd_index, _rs1, _i_imm)
+                }
+                0b110 => {
+                    /* This instruction repurposes _rs1 as immediate */
+                    Instruction::CSRRSI(_rd_index, _rs1, _i_imm)
+                }
+                0b111 => {
+                    /* This instruction repurposes _rs1 as immediate */
+                    Instruction::CSRRCI(_rd_index, _rs1, _i_imm)
+                }
+                _ => {
+                    panic!("Invalid funct3 I-Type");
+                }
+            }
         }
         OpCode::RESERVED3 => todo!(),
         OpCode::CUSTOM3 => todo!(),

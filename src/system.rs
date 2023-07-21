@@ -30,66 +30,26 @@ pub struct CSR {
 impl CSR {
     pub fn read(&self, index: u32) -> u32 {
         match index {
-            0xF11 => {
-                return self.mvendorid;
-            },
-            0xF12 => {
-                return self.marchid;
-            },
-            0xF13 => {
-                return self.mimpid;
-            },
-            0xF14 => {
-                return self.mhartid;
-            },
-            0xF15 => {
-                return self.mconfigptr;
-            },
-            0x300 => {
-                return self.mstatus;
-            },
-            0x301 => {
-                return self.misa;
-            },
-            0x302 => {
-                return self.medeleg;
-            },
-            0x303 => {
-                return self.mideleg;
-            },
-            0x304 => {
-                return self.mie;
-            },
-            0x305 => {
-                return self.mtvec;
-            },
-            0x306 => {
-                return self.mcounteren;
-            },
-            0x310 => {
-                return self.mstatush;
-            },
-            0x340 => {
-                return self.mscratch;
-            },
-            0x341 => {
-                return self.mepc;
-            },
-            0x342 => {
-                return self.mcause;
-            },
-            0x343 => {
-                return self.mtval;
-            },
-            0x344 => {
-                return self.mip;
-            },
-            0x34A => {
-                return self.mtinst;
-            },
-            0x34B => {
-                return self.mtval2;
-            },
+            0xF11 => self.mvendorid,
+            0xF12 => self.marchid,
+            0xF13 => self.mimpid,
+            0xF14 => self.mhartid,
+            0xF15 => self.mconfigptr,
+            0x300 => self.mstatus,
+            0x301 => self.misa,
+            0x302 => self.medeleg,
+            0x303 => self.mideleg,
+            0x304 => self.mie,
+            0x305 => self.mtvec,
+            0x306 => self.mcounteren,
+            0x310 => self.mstatush,
+            0x340 => self.mscratch,
+            0x341 => self.mepc,
+            0x342 => self.mcause,
+            0x343 => self.mtval,
+            0x344 => self.mip,
+            0x34A => self.mtinst,
+            0x34B => self.mtval2,
             _ => {
                 todo!();
             }
@@ -100,64 +60,64 @@ impl CSR {
         match index {
             0xF11 => {
                 panic!("Attempt to write to read-only CSR!");
-            },
+            }
             0xF12 => {
                 panic!("Attempt to write to read-only CSR!");
-            },
+            }
             0xF13 => {
                 panic!("Attempt to write to read-only CSR!");
-            },
+            }
             0xF14 => {
                 panic!("Attempt to write to read-only CSR!");
-            },
+            }
             0xF15 => {
                 panic!("Attempt to write to read-only CSR!");
-            },
+            }
             0x300 => {
                 self.mstatus = value;
-            },
+            }
             0x301 => {
                 self.misa = value;
-            },
+            }
             0x302 => {
                 self.medeleg = value;
-            },
+            }
             0x303 => {
                 self.mideleg = value;
-            },
+            }
             0x304 => {
                 self.mie = value;
-            },
+            }
             0x305 => {
                 self.mtvec = value;
-            },
+            }
             0x306 => {
                 self.mcounteren = value;
-            },
+            }
             0x310 => {
                 self.mstatush = value;
-            },
+            }
             0x340 => {
                 self.mscratch = value;
-            },
+            }
             0x341 => {
                 self.mepc = value;
-            },
+            }
             0x342 => {
                 self.mcause = value;
-            },
+            }
             0x343 => {
                 self.mtval = value;
-            },
+            }
             0x344 => {
                 self.mip = value;
-            },
+            }
             0x34A => {
                 self.mtinst = value;
-            },
+            }
             0x34B => {
                 self.mtval2 = value;
-            },
+            }
             _ => {
                 todo!();
             }
@@ -174,7 +134,7 @@ pub struct RegisterFile {
 
 impl RegisterFile {
     pub fn read(&self, index: Rindex) -> u32 {
-        return self.regs[index];
+        self.regs[index]
     }
 
     pub fn write(&mut self, index: Rindex, value: u32) {
@@ -201,20 +161,20 @@ impl Memory {
             ram_base: 0x8000_0000,
             ram: [0; 4096],
             rom_base: 0x2000_0000,
-            rom: rom,
+            rom,
         }
     }
 
     fn is_io(&self, addr: usize) -> bool {
-        return self.io_base <= addr && addr < self.io_base + self.io_len;
+        self.io_base <= addr && addr < self.io_base + self.io_len
     }
 
     fn is_ram(&self, addr: usize) -> bool {
-        return self.ram_base <= addr && addr < self.ram_base + self.ram.len();
+        self.ram_base <= addr && addr < self.ram_base + self.ram.len()
     }
 
     fn is_rom(&self, addr: usize) -> bool {
-        return self.rom_base <= addr && addr < self.rom_base + self.rom.len();
+        self.rom_base <= addr && addr < self.rom_base + self.rom.len()
     }
 
     pub fn read_byte(&self, addr: usize) -> u32 {
@@ -229,10 +189,10 @@ impl Memory {
         panic!("Memory access outside memory map: 0x{:X}", addr);
     }
     pub fn read_halfword(&self, index: usize) -> u32 {
-        return (self.read_byte(index + 1) << 8) + self.read_byte(index);
+        (self.read_byte(index + 1) << 8) + self.read_byte(index)
     }
     pub fn read_word(&self, index: usize) -> u32 {
-        return (self.read_halfword(index + 2) << 16) + self.read_halfword(index);
+        (self.read_halfword(index + 2) << 16) + self.read_halfword(index)
     }
     pub fn write_byte(&mut self, addr: usize, value: u32) {
         if self.is_ram(addr) {

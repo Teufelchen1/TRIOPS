@@ -1,4 +1,5 @@
 #![allow(unused)]
+#![allow(clippy::upper_case_acronyms)]
 
 use std::env;
 use std::fs;
