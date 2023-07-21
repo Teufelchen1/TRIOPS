@@ -119,6 +119,7 @@ pub enum OpCode {
 
 #[derive(Debug)]
 pub enum Instruction {
+	/* RV32I */
     LUI(RDindex, Uimmediate),
     AUIPC(RDindex, Uimmediate),
     JAL(RDindex, Jimmediate),
@@ -159,6 +160,50 @@ pub enum Instruction {
     FENCE(RDindex, RS1index, Iimmediate),
     ECALL(),
     EBREAK(),
+    /* Zicsr */
+    CSRRW(RDindex, RS1index, Iimmediate),
+    CSRRS(RDindex, RS1index, Iimmediate),
+    CSRRC(RDindex, RS1index, Iimmediate),
+    CSRRWI(RDindex, RS1index, Iimmediate),
+    CSRRSI(RDindex, RS1index, Iimmediate),
+    CSRRCI(RDindex, RS1index, Iimmediate),
+    /* M */
+    MUL(RDindex, RS1index, RS2index),
+    MULH(RDindex, RS1index, RS2index),
+    MULHSU(RDindex, RS1index, RS2index),
+    MULHU(RDindex, RS1index, RS2index),
+    DIV(RDindex, RS1index, RS2index),
+    DIVU(RDindex, RS1index, RS2index),
+    REM(RDindex, RS1index, RS2index),
+    REMU(RDindex, RS1index, RS2index),
+}
+
+impl Instruction {
+	pub fn is_zicsr(&self) -> bool {
+		match self {
+			Self::CSRRCI(..) => true,
+			Self::CSRRW(..) => true,
+			Self::CSRRS(..) => true,
+			Self::CSRRC(..) => true,
+			Self::CSRRWI(..) => true,
+			Self::CSRRSI(..) => true,
+			Self::CSRRCI(..) => true,
+			_ => false,
+		}
+	}
+	pub fn is_m(&self) -> bool {
+		match self {
+			Self::MUL(..) => true,
+			Self::MULH(..) => true,
+			Self::MULHSU(..) => true,
+			Self::MULHU(..) => true,
+			Self::DIV(..) => true,
+			Self::DIVU(..) => true,
+			Self::REM(..) => true,
+			Self::REMU(..) => true,
+			_ => false,
+		}
+	}
 }
 
 fn get_opcode(instruction: u32) -> OpCode {
@@ -327,8 +372,12 @@ pub fn decode(instruction: u32) -> Instruction {
             let _rs1: RS1index = rs1(instruction);
             let _rs2: RS2index = rs2(instruction);
 
+            let _is_m_extension = funct7(instruction) & 0b1 == 1;
             match funct3(instruction) {
                 0b000 => {
+                	if _is_m_extension {
+                		return Instruction::MUL(_rd_index, _rs1, _rs2);
+                	}
                     if funct7(instruction) == 0 {
                         return Instruction::ADD(_rd_index, _rs1, _rs2);
                     } else {
@@ -336,18 +385,33 @@ pub fn decode(instruction: u32) -> Instruction {
                     }
                 }
                 0b001 => {
+                	if _is_m_extension {
+                		return Instruction::MULH(_rd_index, _rs1, _rs2);
+                	}
                     return Instruction::SLL(_rd_index, _rs1, _rs2);
                 }
                 0b010 => {
+                	if _is_m_extension {
+                		return Instruction::MULHSU(_rd_index, _rs1, _rs2);
+                	}
                     return Instruction::SLT(_rd_index, _rs1, _rs2);
                 }
                 0b011 => {
+                	if _is_m_extension {
+                		return Instruction::MULHU(_rd_index, _rs1, _rs2);
+                	}
                     return Instruction::SLTU(_rd_index, _rs1, _rs2);
                 }
                 0b100 => {
+                	if _is_m_extension {
+                		return Instruction::DIV(_rd_index, _rs1, _rs2);
+                	}
                     return Instruction::XOR(_rd_index, _rs1, _rs2);
                 }
                 0b101 => {
+                	if _is_m_extension {
+                		return Instruction::DIVU(_rd_index, _rs1, _rs2);
+                	}
                     if funct7(instruction) == 0 {
                         return Instruction::SRL(_rd_index, _rs1, _rs2);
                     } else {
@@ -355,9 +419,15 @@ pub fn decode(instruction: u32) -> Instruction {
                     }
                 }
                 0b110 => {
+                	if _is_m_extension {
+                		return Instruction::REM(_rd_index, _rs1, _rs2);
+                	}
                     return Instruction::OR(_rd_index, _rs1, _rs2);
                 }
                 0b111 => {
+                	if _is_m_extension {
+                		return Instruction::REMU(_rd_index, _rs1, _rs2);
+                	}
                     return Instruction::AND(_rd_index, _rs1, _rs2);
                 }
                 _ => {
@@ -411,7 +481,6 @@ pub fn decode(instruction: u32) -> Instruction {
             }
         }
         OpCode::JALR => {
-            //println!("JALR");
             /* I-Type instruction */
             let _rd_index: RDindex = rd(instruction);
             let _rs1: RS1index = rs1(instruction);
@@ -420,17 +489,48 @@ pub fn decode(instruction: u32) -> Instruction {
         }
         OpCode::RESERVED2 => todo!(),
         OpCode::JAL => {
-            //println!("JAL");
             let _rd_index: RDindex = rd(instruction);
             let _j_imm: Jimmediate = immediate_j(instruction);
             return Instruction::JAL(_rd_index, _j_imm);
         }
         OpCode::SYSTEM => {
+        	/* I-Type instruction */
+            let _rd_index: RDindex = rd(instruction);
+            let _rs1: RS1index = rs1(instruction);
             let _i_imm: Iimmediate = immediate_i(instruction);
-            if _i_imm == 0 {
-                return Instruction::ECALL();
-            }
-            return Instruction::EBREAK();
+        	match funct3(instruction) {
+                0b000 => {
+		            if _i_imm == 0 {
+		                return Instruction::ECALL();
+		            }
+		            return Instruction::EBREAK();
+		        },
+		        0b001 => {
+		        	return Instruction::CSRRW(_rd_index, _rs1, _i_imm);
+		        },
+		        0b010 => {
+		        	return Instruction::CSRRS(_rd_index, _rs1, _i_imm);
+		        },
+		        0b011 => {
+		        	return Instruction::CSRRC(_rd_index, _rs1, _i_imm);
+		        },
+		        0b101 => {
+		        	/* This instruction repurposes _rs1 as immediate */
+		        	return Instruction::CSRRWI(_rd_index, _rs1, _i_imm);
+		        },
+		        0b110 => {
+		        	/* This instruction repurposes _rs1 as immediate */
+		        	return Instruction::CSRRSI(_rd_index, _rs1, _i_imm);
+		        },
+		        0b111 => {
+		        	/* This instruction repurposes _rs1 as immediate */
+		        	return Instruction::CSRRCI(_rd_index, _rs1, _i_imm);
+		        },
+		        _ => {
+		        	panic!("Invalid funct3 I-Type");
+		        }
+		    }
+
         }
         OpCode::RESERVED3 => todo!(),
         OpCode::CUSTOM3 => todo!(),

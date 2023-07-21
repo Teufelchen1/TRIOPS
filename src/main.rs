@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 use std::env;
 use std::fs;
 
@@ -30,7 +32,7 @@ fn main() {
         let inst = decode(memory.read_word(register_file.pc as usize));
         let inst_ = decode(memory.read_word(register_file.pc as usize));
         //println!("PC: 0x{:X} Instruction: {:?}, {:}, {:}", register_file.pc, inst, register_file.read(14), register_file.read(14));
-        exec(&mut register_file, &mut memory, inst);
+        exec(&mut register_file, &mut memory, inst, true, false);
 
         if let Instruction::ECALL() = inst_ {
             break;

@@ -1,8 +1,174 @@
 use crate::decoder::Rindex;
 
 #[derive(Default)]
+pub struct CSR {
+    /* Machine Information Registers */
+    mvendorid: u32,
+    marchid: u32,
+    mimpid: u32,
+    mhartid: u32,
+    mconfigptr: u32,
+    /* Machine Trap Setup */
+    mstatus: u32,
+    misa: u32,
+    medeleg: u32,
+    mideleg: u32,
+    mie: u32,
+    mtvec: u32,
+    mcounteren: u32,
+    mstatush: u32,
+    /* Machine Trap Handling */
+    mscratch: u32,
+    mepc: u32,
+    mcause: u32,
+    mtval: u32,
+    mip: u32,
+    mtinst: u32,
+    mtval2: u32,
+}
+
+impl CSR {
+    pub fn read(&self, index: u32) -> u32 {
+        match index {
+            0xF11 => {
+                return self.mvendorid;
+            },
+            0xF12 => {
+                return self.marchid;
+            },
+            0xF13 => {
+                return self.mimpid;
+            },
+            0xF14 => {
+                return self.mhartid;
+            },
+            0xF15 => {
+                return self.mconfigptr;
+            },
+            0x300 => {
+                return self.mstatus;
+            },
+            0x301 => {
+                return self.misa;
+            },
+            0x302 => {
+                return self.medeleg;
+            },
+            0x303 => {
+                return self.mideleg;
+            },
+            0x304 => {
+                return self.mie;
+            },
+            0x305 => {
+                return self.mtvec;
+            },
+            0x306 => {
+                return self.mcounteren;
+            },
+            0x310 => {
+                return self.mstatush;
+            },
+            0x340 => {
+                return self.mscratch;
+            },
+            0x341 => {
+                return self.mepc;
+            },
+            0x342 => {
+                return self.mcause;
+            },
+            0x343 => {
+                return self.mtval;
+            },
+            0x344 => {
+                return self.mip;
+            },
+            0x34A => {
+                return self.mtinst;
+            },
+            0x34B => {
+                return self.mtval2;
+            },
+            _ => {
+                todo!();
+            }
+        }
+    }
+
+    pub fn write(&mut self, index: u32, value: u32) {
+        match index {
+            0xF11 => {
+                panic!("Attempt to write to read-only CSR!");
+            },
+            0xF12 => {
+                panic!("Attempt to write to read-only CSR!");
+            },
+            0xF13 => {
+                panic!("Attempt to write to read-only CSR!");
+            },
+            0xF14 => {
+                panic!("Attempt to write to read-only CSR!");
+            },
+            0xF15 => {
+                panic!("Attempt to write to read-only CSR!");
+            },
+            0x300 => {
+                self.mstatus = value;
+            },
+            0x301 => {
+                self.misa = value;
+            },
+            0x302 => {
+                self.medeleg = value;
+            },
+            0x303 => {
+                self.mideleg = value;
+            },
+            0x304 => {
+                self.mie = value;
+            },
+            0x305 => {
+                self.mtvec = value;
+            },
+            0x306 => {
+                self.mcounteren = value;
+            },
+            0x310 => {
+                self.mstatush = value;
+            },
+            0x340 => {
+                self.mscratch = value;
+            },
+            0x341 => {
+                self.mepc = value;
+            },
+            0x342 => {
+                self.mcause = value;
+            },
+            0x343 => {
+                self.mtval = value;
+            },
+            0x344 => {
+                self.mip = value;
+            },
+            0x34A => {
+                self.mtinst = value;
+            },
+            0x34B => {
+                self.mtval2 = value;
+            },
+            _ => {
+                todo!();
+            }
+        }
+    }
+}
+
+#[derive(Default)]
 pub struct RegisterFile {
     regs: [u32; 32],
+    pub csr: CSR,
     pub pc: u32,
 }
 
