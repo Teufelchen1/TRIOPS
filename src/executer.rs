@@ -5,7 +5,7 @@ fn sign_extend(num: u32, bitnum: u32) -> u32 {
     let msb = num >> (bitnum - 1);
     let sign_filled = {
         if msb != 0 {
-            !0x0 << bitnum
+            (!0x0u32).checked_shl(bitnum).unwrap_or(0)
         } else {
             0x0
         }
@@ -16,9 +16,9 @@ fn sign_extend(num: u32, bitnum: u32) -> u32 {
 macro_rules! add_signed {
     ($unsigned:expr, $signed:expr) => {{
         if $signed.is_negative() {
-            $unsigned - $signed.unsigned_abs()
+            $unsigned.wrapping_sub($signed.unsigned_abs())
         } else {
-            $unsigned + $signed.unsigned_abs()
+            $unsigned.wrapping_add($signed.unsigned_abs())
         }
     }};
 }
@@ -42,7 +42,7 @@ pub fn exec(
             register_file.write(rdindex, uimmediate);
         }
         Instruction::AUIPC(rdindex, uimmediate) => {
-            register_file.write(rdindex, register_file.pc + uimmediate);
+            register_file.write(rdindex, register_file.pc.wrapping_add(uimmediate));
         }
         Instruction::JAL(rdindex, jimmediate) => {
             let sign_imm = sign_extend(jimmediate, 20) as i32;
@@ -248,12 +248,12 @@ pub fn exec(
         Instruction::ADD(rdindex, rs1index, rs2index) => {
             let _rs1: RS1value = register_file.read(rs1index);
             let _rs2: RS2value = register_file.read(rs2index);
-            register_file.write(rdindex, _rs1 + _rs2)
+            register_file.write(rdindex, _rs1.wrapping_add(_rs2))
         }
         Instruction::SUB(rdindex, rs1index, rs2index) => {
             let _rs1: RS1value = register_file.read(rs1index);
             let _rs2: RS2value = register_file.read(rs2index);
-            register_file.write(rdindex, _rs1 - _rs2)
+            register_file.write(rdindex, _rs1.wrapping_sub(_rs2))
         }
         Instruction::SLL(rdindex, rs1index, rs2index) => {
             let _rs1: RS1value = register_file.read(rs1index);
@@ -306,33 +306,47 @@ pub fn exec(
         }
         Instruction::FENCE(_rdindex, _rs1index, _iimmediate) => { /* Nop */ }
         Instruction::ECALL() => {
-            println!("ECALL (not implemented)");
+        	register_file.csr.mepc = register_file.pc;
+        	register_file.csr.mcause = 11; /* Environment call from M-Mode */
+            register_file.pc = register_file.csr.mtvec;
         }
         Instruction::EBREAK() => {
-            println!("EBREAK (not implemented)");
+        	println!("EBREAK: a0:{:}, a7:{:}", register_file.read(10), register_file.read(17));
+            //println!("EBREAK (not implemented)");
+        }
+        Instruction::MRET() => {
+        	register_file.pc = register_file.csr.mepc;
         }
         Instruction::CSRRW(_rd_index, _rs1, _i_imm) => {
-            register_file.write(_rd_index, register_file.csr.read(_i_imm));
-            register_file.csr.write(_i_imm, register_file.read(_rs1));
+        	if _rd_index != 0 {
+	            register_file.write(_rd_index, register_file.csr.read(_i_imm));
+	            register_file.csr.write(_i_imm, register_file.read(_rs1));
+	        }
         }
         Instruction::CSRRS(_rd_index, _rs1, _i_imm) => {
             let _csr_value = register_file.csr.read(_i_imm);
             register_file.write(_rd_index, _csr_value);
-            register_file
-                .csr
-                .write(_i_imm, register_file.read(_rs1) | _csr_value);
+            if _rs1 != 0 {
+	            register_file
+	                .csr
+	                .write(_i_imm, register_file.read(_rs1) | _csr_value);
+	        }
         }
         Instruction::CSRRC(_rd_index, _rs1, _i_imm) => {
             let _csr_value = register_file.csr.read(_i_imm);
             register_file.write(_rd_index, _csr_value);
-            register_file
-                .csr
-                .write(_i_imm, !register_file.read(_rs1) & _csr_value);
+            if _rs1 != 0 {
+	            register_file
+	                .csr
+	                .write(_i_imm, !register_file.read(_rs1) & _csr_value);
+	        }
         }
         Instruction::CSRRWI(_rd_index, _rs1, _i_imm) => {
             /* _rs1 is actual an immediate */
             let uimm = _rs1 as u32;
-            register_file.write(_rd_index, register_file.csr.read(_i_imm));
+            if _rd_index != 0 {
+            	register_file.write(_rd_index, register_file.csr.read(_i_imm));
+            }
             register_file.csr.write(_i_imm, uimm);
         }
         Instruction::CSRRSI(_rd_index, _rs1, _i_imm) => {
@@ -340,14 +354,18 @@ pub fn exec(
             let uimm = _rs1 as u32;
             let _csr_value = register_file.csr.read(_i_imm);
             register_file.write(_rd_index, _csr_value);
-            register_file.csr.write(_i_imm, uimm | _csr_value);
+            if uimm != 0 {
+            	register_file.csr.write(_i_imm, uimm | _csr_value);
+            }
         }
         Instruction::CSRRCI(_rd_index, _rs1, _i_imm) => {
             /* _rs1 is actual an immediate */
             let uimm = _rs1 as u32;
             let _csr_value = register_file.csr.read(_i_imm);
             register_file.write(_rd_index, _csr_value);
-            register_file.csr.write(_i_imm, !uimm & _csr_value);
+            if uimm != 0 {
+            	register_file.csr.write(_i_imm, !uimm & _csr_value);
+            }
         }
         Instruction::MUL(rdindex, rs1index, rs2index) => {
             todo!();

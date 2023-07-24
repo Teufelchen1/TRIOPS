@@ -3,28 +3,28 @@ use crate::decoder::Rindex;
 #[derive(Default)]
 pub struct CSR {
     /* Machine Information Registers */
-    mvendorid: u32,
-    marchid: u32,
-    mimpid: u32,
-    mhartid: u32,
-    mconfigptr: u32,
+    pub mvendorid: u32,
+    pub marchid: u32,
+    pub mimpid: u32,
+    pub mhartid: u32,
+    pub mconfigptr: u32,
     /* Machine Trap Setup */
-    mstatus: u32,
-    misa: u32,
-    medeleg: u32,
-    mideleg: u32,
-    mie: u32,
-    mtvec: u32,
-    mcounteren: u32,
-    mstatush: u32,
+    pub mstatus: u32,
+    pub misa: u32,
+    pub medeleg: u32,
+    pub mideleg: u32,
+    pub mie: u32,
+    pub mtvec: u32,
+    pub mcounteren: u32,
+    pub mstatush: u32,
     /* Machine Trap Handling */
-    mscratch: u32,
-    mepc: u32,
-    mcause: u32,
-    mtval: u32,
-    mip: u32,
-    mtinst: u32,
-    mtval2: u32,
+    pub mscratch: u32,
+    pub mepc: u32,
+    pub mcause: u32,
+    pub mtval: u32,
+    pub mip: u32,
+    pub mtinst: u32,
+    pub mtval2: u32,
 }
 
 impl CSR {
@@ -74,28 +74,38 @@ impl CSR {
                 panic!("Attempt to write to read-only CSR!");
             }
             0x300 => {
-                self.mstatus = value;
+                println!("Ingoring write of {:X} into mstatus", value);
+                self.mstatus = 0;
             }
             0x301 => {
-                self.misa = value;
+                /* WARL / zero indicates misa is not implemented */
+                self.misa = 0;
             }
             0x302 => {
-                self.medeleg = value;
+                println!("Ingoring write of {:X} into medeleg", value);
+                self.medeleg = 0;
             }
             0x303 => {
-                self.mideleg = value;
+                println!("Ingoring write of {:X} into mideleg", value);
+                self.mideleg = 0;
             }
             0x304 => {
-                self.mie = value;
+                println!("Ingoring write of {:X} into mie", value);
+                self.mie = 0;
             }
             0x305 => {
+                if value % 4 != 0 {
+                    panic!("mtvec value not 4-byte aligned or mode other than Direct selected");
+                }
                 self.mtvec = value;
             }
             0x306 => {
-                self.mcounteren = value;
+                println!("Ingoring write of {:X} into mcounteren", value);
+                self.mcounteren = 0;
             }
             0x310 => {
-                self.mstatush = value;
+                println!("Ingoring write of {:X} into mstatush", value);
+                self.mstatush = 0;
             }
             0x340 => {
                 self.mscratch = value;
@@ -107,16 +117,20 @@ impl CSR {
                 self.mcause = value;
             }
             0x343 => {
-                self.mtval = value;
+                println!("Ingoring write of {:X} into mtval", value);
+                self.mtval = 0;
             }
             0x344 => {
-                self.mip = value;
+                println!("Ingoring write of {:X} into mip", value);
+                self.mip = 0;
             }
             0x34A => {
-                self.mtinst = value;
+                println!("Ingoring write of {:X} into mtinst", value);
+                self.mtinst = 0;
             }
             0x34B => {
-                self.mtval2 = value;
+                println!("Ingoring write of {:X} into mtval2", value);
+                self.mtval2 = 0;
             }
             _ => {
                 todo!();
@@ -148,20 +162,31 @@ pub struct Memory {
     pub io_base: usize,
     pub io_len: usize,
     pub ram_base: usize,
-    pub ram: [u8; 4096],
+    pub ram: Vec<u8>,
     pub rom_base: usize,
     pub rom: Vec<u8>,
 }
 
 impl Memory {
-    pub fn default(rom: Vec<u8>) -> Self {
+    pub fn default_rom(rom: Vec<u8>) -> Self {
         Self {
             io_base: 0x6000_0000,
             io_len: 0x01,
             ram_base: 0x8000_0000,
-            ram: [0; 4096],
+            ram: [0; 4096].to_vec(),
             rom_base: 0x2000_0000,
             rom,
+        }
+    }
+
+    pub fn default_ram(ram: Vec<u8>) -> Self {
+        Self {
+            io_base: 0x6000_0000,
+            io_len: 0x01,
+            ram_base: 0x8000_0000,
+            ram,
+            rom_base: 0x2000_0000,
+            rom: [0; 4096].to_vec(),
         }
     }
 

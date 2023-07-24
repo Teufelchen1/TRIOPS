@@ -160,6 +160,7 @@ pub enum Instruction {
     FENCE(RDindex, RS1index, Iimmediate),
     ECALL(),
     EBREAK(),
+    MRET(),
     /* Zicsr */
     CSRRW(RDindex, RS1index, Iimmediate),
     CSRRS(RDindex, RS1index, Iimmediate),
@@ -458,10 +459,12 @@ pub fn decode(instruction: u32) -> Instruction {
             let _i_imm: Iimmediate = immediate_i(instruction);
             match funct3(instruction) {
                 0b000 => {
-                    if _i_imm == 0 {
-                        return Instruction::ECALL();
-                    }
-                    Instruction::EBREAK()
+                	match _i_imm {
+                		0b0000_0000_0000 => Instruction::ECALL(),
+                		0b0000_0000_0001 => Instruction::EBREAK(),
+                		0b0011_0000_0010 => Instruction::MRET(),
+                		_ => { panic!("Invalid SYSTEM instruction immediate"); }
+                	}
                 }
                 0b001 => Instruction::CSRRW(_rd_index, _rs1, _i_imm),
                 0b010 => Instruction::CSRRS(_rd_index, _rs1, _i_imm),
