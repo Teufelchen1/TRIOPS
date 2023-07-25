@@ -97,7 +97,7 @@ _start:                                                                 \
 1:      beqz TESTNUM, 1b;                                               \
         sll TESTNUM, TESTNUM, 1;                                        \
         or TESTNUM, TESTNUM, 1;                                         \
-        li a7, 93;                                                      \
+        li a7, 90;                                                      \
         addi a0, TESTNUM, 0;                                            \
         ebreak;
 

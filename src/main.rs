@@ -3,6 +3,23 @@
 
 use std::env;
 use std::fs;
+use std::io;
+
+use clap::Parser;
+
+use tui::{
+    backend::{Backend, CrosstermBackend},
+    Terminal,
+};
+
+use crossterm::{
+    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
+    execute,
+    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+};
+
+mod ui;
+use ui::UiData;
 
 mod decoder;
 use decoder::{decode, Instruction};
@@ -13,35 +30,69 @@ use executer::exec;
 mod system;
 use system::{Memory, RegisterFile};
 
-fn main() {
-    let args: Vec<String> = env::args().collect();
-    let file_name: String = {
-        match args.len() {
-            2 => args[1].parse().unwrap(),
-            _ => {
-                panic!("Usage: {:} FILE", args[0].parse::<String>().unwrap());
-            }
-        }
-    };
+#[derive(Parser, Debug)]
+struct Args {
+    /// Name of the person to greet
+    #[arg(short, long)]
+    file: String,
+
+    /// Number of times to greet
+    #[arg(long, default_value_t = false)]
+    headless: bool,
+}
+
+fn main() -> anyhow::Result<()> {
+    let args = Args::parse();
 
     let mut register_file: RegisterFile = RegisterFile::default();
-    let mut memory: Memory = Memory::default_ram(fs::read(file_name).unwrap());
-    //register_file.write(2, (memory.ram_base + memory.ram.len()) as u32);
-    //register_file.pc = memory.rom_base as u32;
+    let mut memory: Memory = Memory::default_ram(fs::read(args.file).unwrap());
     register_file.pc = memory.ram_base as u32;
 
-    loop {
-        let inst = decode(memory.read_word(register_file.pc as usize));
-        let inst_ = decode(memory.read_word(register_file.pc as usize));
-        println!("PC: 0x{:X} Instruction: {:?}", register_file.pc, inst);
-        exec(&mut register_file, &mut memory, inst, true, false);
+    if args.headless {
+        loop {
+            let inst = decode(memory.read_word(register_file.pc as usize)).unwrap();
+            if !exec(&mut register_file, &mut memory, inst, true, false) {
+                break;
+            }
+        }
+        anyhow::ensure!(register_file.read(17) == 93, "Test failed");
+    } else {
+        enable_raw_mode()?;
+        let stdout = io::stdout();
+        let backend = CrosstermBackend::new(stdout);
+        let mut terminal = Terminal::new(backend)?;
+        terminal.clear();
 
-        if let Instruction::ECALL() = inst_ {
-            break;
+        let mut ui = UiData::new();
+
+        loop {
+            terminal.draw(|f| ui.ui(f, &register_file, &memory))?;
+
+            if let Event::Key(key) = event::read()? {
+                match key.code {
+                    KeyCode::Char('q') => {
+                        break;
+                    }
+                    KeyCode::Char('s') => {
+                        let inst = decode(memory.read_word(register_file.pc as usize)).unwrap();
+                        if !exec(&mut register_file, &mut memory, inst, true, false) {
+                            break;
+                        }
+                    }
+                    _ => todo!(),
+                }
+            }
         }
-        if let Instruction::EBREAK() = inst_ {
-            break;
-        }
+
+        disable_raw_mode()?;
+        execute!(
+            terminal.backend_mut(),
+            LeaveAlternateScreen,
+            DisableMouseCapture
+        )?;
+        terminal.show_cursor()?;
     }
-    println!("Done!");
+
+    println!("\nDone!");
+    Ok(())
 }

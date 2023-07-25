@@ -207,77 +207,78 @@ impl Instruction {
     }
 }
 
-fn get_opcode(instruction: u32) -> OpCode {
+fn get_opcode(instruction: u32) -> Result<OpCode, &'static str> {
     match OpUpperBits!(instruction) {
         0b00 => match OpLowerBits!(instruction) {
-            0b000 => OpCode::LOAD,
-            0b001 => OpCode::LOADFP,
-            0b010 => OpCode::CUSTOM0,
-            0b011 => OpCode::MISCMEM,
-            0b100 => OpCode::OPIMM,
-            0b101 => OpCode::AUIPC,
-            0b110 => OpCode::OPIMM32,
-            0b111 => OpCode::LEN48,
-            _ => panic!("Shouldn't happen"),
+            0b000 => Ok(OpCode::LOAD),
+            0b001 => Ok(OpCode::LOADFP),
+            0b010 => Ok(OpCode::CUSTOM0),
+            0b011 => Ok(OpCode::MISCMEM),
+            0b100 => Ok(OpCode::OPIMM),
+            0b101 => Ok(OpCode::AUIPC),
+            0b110 => Ok(OpCode::OPIMM32),
+            0b111 => Ok(OpCode::LEN48),
+            _ => Err("Shouldn't happen"),
         },
         0b01 => match OpLowerBits!(instruction) {
-            0b000 => OpCode::STORE,
-            0b001 => OpCode::STOREFP,
-            0b010 => OpCode::CUSTOM1,
-            0b011 => OpCode::AMO,
-            0b100 => OpCode::OP,
-            0b101 => OpCode::LUI,
-            0b110 => OpCode::OP32,
-            0b111 => OpCode::LEN64,
-            _ => panic!("Shouldn't happen"),
+            0b000 => Ok(OpCode::STORE),
+            0b001 => Ok(OpCode::STOREFP),
+            0b010 => Ok(OpCode::CUSTOM1),
+            0b011 => Ok(OpCode::AMO),
+            0b100 => Ok(OpCode::OP),
+            0b101 => Ok(OpCode::LUI),
+            0b110 => Ok(OpCode::OP32),
+            0b111 => Ok(OpCode::LEN64),
+            _ => Err("Shouldn't happen"),
         },
         0b10 => match OpLowerBits!(instruction) {
-            0b000 => OpCode::MADD,
-            0b001 => OpCode::MSUB,
-            0b010 => OpCode::NMSUB,
-            0b011 => OpCode::NMADD,
-            0b100 => OpCode::OPFP,
-            0b101 => OpCode::RESERVED1,
-            0b110 => OpCode::CUSTOM2,
-            0b111 => OpCode::LEN482,
-            _ => panic!("Shouldn't happen"),
+            0b000 => Ok(OpCode::MADD),
+            0b001 => Ok(OpCode::MSUB),
+            0b010 => Ok(OpCode::NMSUB),
+            0b011 => Ok(OpCode::NMADD),
+            0b100 => Ok(OpCode::OPFP),
+            0b101 => Ok(OpCode::RESERVED1),
+            0b110 => Ok(OpCode::CUSTOM2),
+            0b111 => Ok(OpCode::LEN482),
+            _ => Err("Shouldn't happen"),
         },
         0b11 => match OpLowerBits!(instruction) {
-            0b000 => OpCode::BRANCH,
-            0b001 => OpCode::JALR,
-            0b010 => OpCode::RESERVED2,
-            0b011 => OpCode::JAL,
-            0b100 => OpCode::SYSTEM,
-            0b101 => OpCode::RESERVED3,
-            0b110 => OpCode::CUSTOM3,
-            0b111 => OpCode::LEN80,
-            _ => panic!("Shouldn't happen"),
+            0b000 => Ok(OpCode::BRANCH),
+            0b001 => Ok(OpCode::JALR),
+            0b010 => Ok(OpCode::RESERVED2),
+            0b011 => Ok(OpCode::JAL),
+            0b100 => Ok(OpCode::SYSTEM),
+            0b101 => Ok(OpCode::RESERVED3),
+            0b110 => Ok(OpCode::CUSTOM3),
+            0b111 => Ok(OpCode::LEN80),
+            _ => Err("Shouldn't happen"),
         },
-        _ => panic!("Ahhhhhh: {:?}", OpUpperBits!(instruction)),
+        _ => Err("Wrong upper bits"),
     }
 }
 
-pub fn decode(instruction: u32) -> Instruction {
+pub fn decode(instruction: u32) -> Result<Instruction, &'static str> {
     if !isBaseInstructionSet!(instruction) {
-        panic!("Invalid base instruction type");
+        return Err("Invalid base instruction type");
     }
     let op = get_opcode(instruction);
-    match op {
+    if op.is_err() {
+        return Err(op.unwrap_err());
+    }
+    match op.unwrap() {
         OpCode::LOAD => {
             /* All LOAD are I-Type instructions */
             let _rd_index: RDindex = rd(instruction);
             let _rs1: RS1index = rs1(instruction);
             let _i_imm: Iimmediate = immediate_i(instruction);
             match funct3(instruction) {
-                0b000 => Instruction::LB(_rd_index, _rs1, _i_imm),
-                0b001 => Instruction::LH(_rd_index, _rs1, _i_imm),
-                0b010 => Instruction::LW(_rd_index, _rs1, _i_imm),
-                0b100 => Instruction::LBU(_rd_index, _rs1, _i_imm),
-                0b101 => Instruction::LHU(_rd_index, _rs1, _i_imm),
-                _ => {
-                    panic!("Invalid funct3 I-Type");
-                }
-            } //
+                0b000 => Ok(Instruction::LB(_rd_index, _rs1, _i_imm)),
+                0b001 => Ok(Instruction::LH(_rd_index, _rs1, _i_imm)),
+                0b010 => Ok(Instruction::LW(_rd_index, _rs1, _i_imm)),
+                0b100 => Ok(Instruction::LBU(_rd_index, _rs1, _i_imm)),
+                0b101 => Ok(Instruction::LHU(_rd_index, _rs1, _i_imm)),
+                _ => Err("Invalid funct3 I-Type"),
+            }
         }
         OpCode::LOADFP => todo!(),
         OpCode::CUSTOM0 => todo!(),
@@ -285,7 +286,7 @@ pub fn decode(instruction: u32) -> Instruction {
             let _rd_index: RDindex = rd(instruction);
             let _rs1: RS1index = rs1(instruction);
             let _i_imm: Iimmediate = immediate_i(instruction);
-            Instruction::FENCE(_rd_index, _rs1, _i_imm)
+            Ok(Instruction::FENCE(_rd_index, _rs1, _i_imm))
         }
         OpCode::OPIMM => {
             /* All OPIMM are I-Type instructions */
@@ -293,30 +294,28 @@ pub fn decode(instruction: u32) -> Instruction {
             let _rs1: RS1index = rs1(instruction);
             let _i_imm: Iimmediate = immediate_i(instruction);
             match funct3(instruction) {
-                0b000 => Instruction::ADDI(_rd_index, _rs1, _i_imm),
-                0b010 => Instruction::SLTI(_rd_index, _rs1, _i_imm),
-                0b011 => Instruction::SLTIU(_rd_index, _rs1, _i_imm),
-                0b100 => Instruction::XORI(_rd_index, _rs1, _i_imm),
-                0b110 => Instruction::ORI(_rd_index, _rs1, _i_imm),
-                0b111 => Instruction::ANDI(_rd_index, _rs1, _i_imm),
-                0b001 => Instruction::SLLI(_rd_index, _rs1, _i_imm),
+                0b000 => Ok(Instruction::ADDI(_rd_index, _rs1, _i_imm)),
+                0b010 => Ok(Instruction::SLTI(_rd_index, _rs1, _i_imm)),
+                0b011 => Ok(Instruction::SLTIU(_rd_index, _rs1, _i_imm)),
+                0b100 => Ok(Instruction::XORI(_rd_index, _rs1, _i_imm)),
+                0b110 => Ok(Instruction::ORI(_rd_index, _rs1, _i_imm)),
+                0b111 => Ok(Instruction::ANDI(_rd_index, _rs1, _i_imm)),
+                0b001 => Ok(Instruction::SLLI(_rd_index, _rs1, _i_imm)),
                 0b101 => {
                     if _i_imm == 0 {
-                        Instruction::SRLI(_rd_index, _rs1, _i_imm)
+                        Ok(Instruction::SRLI(_rd_index, _rs1, _i_imm))
                     } else {
-                        Instruction::SRAI(_rd_index, _rs1, _i_imm)
+                        Ok(Instruction::SRAI(_rd_index, _rs1, _i_imm))
                     }
                 }
-                _ => {
-                    panic!("Invalid funct3 I-Type");
-                }
+                _ => Err("Invalid funct3 I-Type"),
             }
         }
         OpCode::AUIPC => {
             /* U Type */
             let _rd_index: RDindex = rd(instruction);
             let _u_imm: Uimmediate = immediate_u(instruction);
-            Instruction::AUIPC(_rd_index, _u_imm)
+            Ok(Instruction::AUIPC(_rd_index, _u_imm))
         }
         OpCode::OPIMM32 => todo!(),
         OpCode::LEN48 => todo!(),
@@ -326,12 +325,10 @@ pub fn decode(instruction: u32) -> Instruction {
             let _rs2: RS2index = rs2(instruction);
             let _s_imm: Simmediate = immediate_s(instruction);
             match funct3(instruction) {
-                0b000 => Instruction::SB(_rs1, _rs2, _s_imm),
-                0b001 => Instruction::SH(_rs1, _rs2, _s_imm),
-                0b010 => Instruction::SW(_rs1, _rs2, _s_imm),
-                _ => {
-                    panic!("Invalid funct3 S-Type");
-                }
+                0b000 => Ok(Instruction::SB(_rs1, _rs2, _s_imm)),
+                0b001 => Ok(Instruction::SH(_rs1, _rs2, _s_imm)),
+                0b010 => Ok(Instruction::SW(_rs1, _rs2, _s_imm)),
+                _ => Err("Invalid funct3 S-Type"),
             }
         }
         OpCode::STOREFP => todo!(),
@@ -347,70 +344,68 @@ pub fn decode(instruction: u32) -> Instruction {
             match funct3(instruction) {
                 0b000 => {
                     if _is_m_extension {
-                        return Instruction::MUL(_rd_index, _rs1, _rs2);
+                        return Ok(Instruction::MUL(_rd_index, _rs1, _rs2));
                     }
                     if funct7(instruction) == 0 {
-                        Instruction::ADD(_rd_index, _rs1, _rs2)
+                        Ok(Instruction::ADD(_rd_index, _rs1, _rs2))
                     } else {
-                        Instruction::SUB(_rd_index, _rs1, _rs2)
+                        Ok(Instruction::SUB(_rd_index, _rs1, _rs2))
                     }
                 }
                 0b001 => {
                     if _is_m_extension {
-                        return Instruction::MULH(_rd_index, _rs1, _rs2);
+                        return Ok(Instruction::MULH(_rd_index, _rs1, _rs2));
                     }
-                    Instruction::SLL(_rd_index, _rs1, _rs2)
+                    Ok(Instruction::SLL(_rd_index, _rs1, _rs2))
                 }
                 0b010 => {
                     if _is_m_extension {
-                        return Instruction::MULHSU(_rd_index, _rs1, _rs2);
+                        return Ok(Instruction::MULHSU(_rd_index, _rs1, _rs2));
                     }
-                    Instruction::SLT(_rd_index, _rs1, _rs2)
+                    Ok(Instruction::SLT(_rd_index, _rs1, _rs2))
                 }
                 0b011 => {
                     if _is_m_extension {
-                        return Instruction::MULHU(_rd_index, _rs1, _rs2);
+                        return Ok(Instruction::MULHU(_rd_index, _rs1, _rs2));
                     }
-                    Instruction::SLTU(_rd_index, _rs1, _rs2)
+                    Ok(Instruction::SLTU(_rd_index, _rs1, _rs2))
                 }
                 0b100 => {
                     if _is_m_extension {
-                        return Instruction::DIV(_rd_index, _rs1, _rs2);
+                        return Ok(Instruction::DIV(_rd_index, _rs1, _rs2));
                     }
-                    Instruction::XOR(_rd_index, _rs1, _rs2)
+                    Ok(Instruction::XOR(_rd_index, _rs1, _rs2))
                 }
                 0b101 => {
                     if _is_m_extension {
-                        return Instruction::DIVU(_rd_index, _rs1, _rs2);
+                        return Ok(Instruction::DIVU(_rd_index, _rs1, _rs2));
                     }
                     if funct7(instruction) == 0 {
-                        Instruction::SRL(_rd_index, _rs1, _rs2)
+                        Ok(Instruction::SRL(_rd_index, _rs1, _rs2))
                     } else {
-                        Instruction::SRA(_rd_index, _rs1, _rs2)
+                        Ok(Instruction::SRA(_rd_index, _rs1, _rs2))
                     }
                 }
                 0b110 => {
                     if _is_m_extension {
-                        return Instruction::REM(_rd_index, _rs1, _rs2);
+                        return Ok(Instruction::REM(_rd_index, _rs1, _rs2));
                     }
-                    Instruction::OR(_rd_index, _rs1, _rs2)
+                    Ok(Instruction::OR(_rd_index, _rs1, _rs2))
                 }
                 0b111 => {
                     if _is_m_extension {
-                        return Instruction::REMU(_rd_index, _rs1, _rs2);
+                        return Ok(Instruction::REMU(_rd_index, _rs1, _rs2));
                     }
-                    Instruction::AND(_rd_index, _rs1, _rs2)
+                    Ok(Instruction::AND(_rd_index, _rs1, _rs2))
                 }
-                _ => {
-                    panic!("Invalid funct3 R-Type");
-                }
+                _ => Err("Invalid funct3 R-Type"),
             }
         }
         OpCode::LUI => {
             /* U Type */
             let _rd_index: RDindex = rd(instruction);
             let _u_imm: Uimmediate = immediate_u(instruction);
-            Instruction::LUI(_rd_index, _u_imm)
+            Ok(Instruction::LUI(_rd_index, _u_imm))
         }
         OpCode::OP32 => todo!(),
         OpCode::LEN64 => todo!(),
@@ -428,15 +423,13 @@ pub fn decode(instruction: u32) -> Instruction {
             let _rs2: RS2index = rs2(instruction);
             let _b_imm: Bimmediate = immediate_b(instruction);
             match funct3(instruction) {
-                0b000 => Instruction::BEQ(_rs1, _rs2, _b_imm),
-                0b001 => Instruction::BNE(_rs1, _rs2, _b_imm),
-                0b100 => Instruction::BLT(_rs1, _rs2, _b_imm),
-                0b101 => Instruction::BGE(_rs1, _rs2, _b_imm),
-                0b110 => Instruction::BLTU(_rs1, _rs2, _b_imm),
-                0b111 => Instruction::BGEU(_rs1, _rs2, _b_imm),
-                _ => {
-                    panic!("Invalid funct3 B-Type");
-                }
+                0b000 => Ok(Instruction::BEQ(_rs1, _rs2, _b_imm)),
+                0b001 => Ok(Instruction::BNE(_rs1, _rs2, _b_imm)),
+                0b100 => Ok(Instruction::BLT(_rs1, _rs2, _b_imm)),
+                0b101 => Ok(Instruction::BGE(_rs1, _rs2, _b_imm)),
+                0b110 => Ok(Instruction::BLTU(_rs1, _rs2, _b_imm)),
+                0b111 => Ok(Instruction::BGEU(_rs1, _rs2, _b_imm)),
+                _ => Err("Invalid funct3 B-Type"),
             }
         }
         OpCode::JALR => {
@@ -444,13 +437,13 @@ pub fn decode(instruction: u32) -> Instruction {
             let _rd_index: RDindex = rd(instruction);
             let _rs1: RS1index = rs1(instruction);
             let _i_imm: Iimmediate = immediate_i(instruction);
-            Instruction::JALR(_rd_index, _rs1, _i_imm)
+            Ok(Instruction::JALR(_rd_index, _rs1, _i_imm))
         }
         OpCode::RESERVED2 => todo!(),
         OpCode::JAL => {
             let _rd_index: RDindex = rd(instruction);
             let _j_imm: Jimmediate = immediate_j(instruction);
-            Instruction::JAL(_rd_index, _j_imm)
+            Ok(Instruction::JAL(_rd_index, _j_imm))
         }
         OpCode::SYSTEM => {
             /* I-Type instruction */
@@ -458,32 +451,28 @@ pub fn decode(instruction: u32) -> Instruction {
             let _rs1: RS1index = rs1(instruction);
             let _i_imm: Iimmediate = immediate_i(instruction);
             match funct3(instruction) {
-                0b000 => {
-                	match _i_imm {
-                		0b0000_0000_0000 => Instruction::ECALL(),
-                		0b0000_0000_0001 => Instruction::EBREAK(),
-                		0b0011_0000_0010 => Instruction::MRET(),
-                		_ => { panic!("Invalid SYSTEM instruction immediate"); }
-                	}
-                }
-                0b001 => Instruction::CSRRW(_rd_index, _rs1, _i_imm),
-                0b010 => Instruction::CSRRS(_rd_index, _rs1, _i_imm),
-                0b011 => Instruction::CSRRC(_rd_index, _rs1, _i_imm),
+                0b000 => match _i_imm {
+                    0b0000_0000_0000 => Ok(Instruction::ECALL()),
+                    0b0000_0000_0001 => Ok(Instruction::EBREAK()),
+                    0b0011_0000_0010 => Ok(Instruction::MRET()),
+                    _ => Err("Invalid SYSTEM instruction immediate"),
+                },
+                0b001 => Ok(Instruction::CSRRW(_rd_index, _rs1, _i_imm)),
+                0b010 => Ok(Instruction::CSRRS(_rd_index, _rs1, _i_imm)),
+                0b011 => Ok(Instruction::CSRRC(_rd_index, _rs1, _i_imm)),
                 0b101 => {
                     /* This instruction repurposes _rs1 as immediate */
-                    Instruction::CSRRWI(_rd_index, _rs1, _i_imm)
+                    Ok(Instruction::CSRRWI(_rd_index, _rs1, _i_imm))
                 }
                 0b110 => {
                     /* This instruction repurposes _rs1 as immediate */
-                    Instruction::CSRRSI(_rd_index, _rs1, _i_imm)
+                    Ok(Instruction::CSRRSI(_rd_index, _rs1, _i_imm))
                 }
                 0b111 => {
                     /* This instruction repurposes _rs1 as immediate */
-                    Instruction::CSRRCI(_rd_index, _rs1, _i_imm)
+                    Ok(Instruction::CSRRCI(_rd_index, _rs1, _i_imm))
                 }
-                _ => {
-                    panic!("Invalid funct3 I-Type");
-                }
+                _ => Err("Invalid funct3 I-Type"),
             }
         }
         OpCode::RESERVED3 => todo!(),

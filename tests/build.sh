@@ -2,7 +2,7 @@
 set -e
 
 export XLEN=32
-export RISCV_GCC_OPTS="-I$(pwd)/include -I$(pwd)/src/env -march=rv32i -mabi=ilp32 -static -mcmodel=medany -fvisibility=hidden -nostdlib -nostartfiles"
+export RISCV_GCC_OPTS="-I$(pwd)/include -I$(pwd)/src/env -march=rv32i_zifencei -mabi=ilp32 -static -mcmodel=medany -fvisibility=hidden -nostdlib -nostartfiles"
 
 banner() {
 	printf "##\n# %s\n##\n\n" "${1}"
@@ -27,7 +27,7 @@ for file in src/isa/rv32ui-p-*; do
 
 	riscv64-unknown-elf-objcopy --strip-debug -O binary ${file} ./test.hex
 
-	ret=0; ../target/debug/rv "./test.hex" > /dev/null || ret=$?
+	ret=0; ../target/debug/rv --file "./test.hex" --headless > /dev/null || ret=$?
 	if [ "${ret}" -ne 0 ]; then
 		exit=1
 		printf "FAIL\n"

@@ -29,7 +29,7 @@ pub fn exec(
     instruction: Instruction,
     zicsr_enabled: bool,
     m_enabled: bool,
-) {
+) -> bool {
     if instruction.is_zicsr() && !zicsr_enabled {
         panic!();
     }
@@ -51,7 +51,7 @@ pub fn exec(
                 panic!("JAL target addr not 4 byte aligned.");
             }
             register_file.pc = add_signed!(register_file.pc, sign_imm);
-            return;
+            return true;
         }
         Instruction::JALR(rdindex, rs1index, iimmediate) => {
             let _rs1: RS1value = register_file.read(rs1index);
@@ -62,7 +62,7 @@ pub fn exec(
             }
             register_file.write(rdindex, register_file.pc + 4);
             register_file.pc = target;
-            return;
+            return true;
         }
         Instruction::BEQ(rs1index, rs2index, bimmediate) => {
             let _rs1: RS1value = register_file.read(rs1index);
@@ -73,7 +73,7 @@ pub fn exec(
                     panic!("Branch target addr not 4 byte aligned.");
                 }
                 register_file.pc = add_signed!(register_file.pc, sign_imm);
-                return;
+                return true;
             }
         }
         Instruction::BNE(rs1index, rs2index, bimmediate) => {
@@ -85,7 +85,7 @@ pub fn exec(
                     panic!("Branch target addr not 4 byte aligned.");
                 }
                 register_file.pc = add_signed!(register_file.pc, sign_imm);
-                return;
+                return true;
             }
         }
         Instruction::BLT(rs1index, rs2index, bimmediate) => {
@@ -97,7 +97,7 @@ pub fn exec(
                     panic!("Branch target addr not 4 byte aligned.");
                 }
                 register_file.pc = add_signed!(register_file.pc, sign_imm);
-                return;
+                return true;
             }
         }
         Instruction::BGE(rs1index, rs2index, bimmediate) => {
@@ -109,7 +109,7 @@ pub fn exec(
                     panic!("Branch target addr not 4 byte aligned.");
                 }
                 register_file.pc = add_signed!(register_file.pc, sign_imm);
-                return;
+                return true;
             }
         }
         Instruction::BLTU(rs1index, rs2index, bimmediate) => {
@@ -121,7 +121,7 @@ pub fn exec(
                     panic!("Branch target addr not 4 byte aligned.");
                 }
                 register_file.pc = add_signed!(register_file.pc, sign_imm);
-                return;
+                return true;
             }
         }
         Instruction::BGEU(rs1index, rs2index, bimmediate) => {
@@ -133,7 +133,7 @@ pub fn exec(
                     panic!("Branch target addr not 4 byte aligned.");
                 }
                 register_file.pc = add_signed!(register_file.pc, sign_imm);
-                return;
+                return true;
             }
         }
         Instruction::LB(rdindex, rs1index, iimmediate) => {
@@ -306,46 +306,45 @@ pub fn exec(
         }
         Instruction::FENCE(_rdindex, _rs1index, _iimmediate) => { /* Nop */ }
         Instruction::ECALL() => {
-        	register_file.csr.mepc = register_file.pc;
-        	register_file.csr.mcause = 11; /* Environment call from M-Mode */
+            register_file.csr.mepc = register_file.pc;
+            register_file.csr.mcause = 11; /* Environment call from M-Mode */
             register_file.pc = register_file.csr.mtvec;
         }
         Instruction::EBREAK() => {
-        	println!("EBREAK: a0:{:}, a7:{:}", register_file.read(10), register_file.read(17));
-            //println!("EBREAK (not implemented)");
+            return false;
         }
         Instruction::MRET() => {
-        	register_file.pc = register_file.csr.mepc;
+            register_file.pc = register_file.csr.mepc;
         }
         Instruction::CSRRW(_rd_index, _rs1, _i_imm) => {
-        	if _rd_index != 0 {
-	            register_file.write(_rd_index, register_file.csr.read(_i_imm));
-	            register_file.csr.write(_i_imm, register_file.read(_rs1));
-	        }
+            if _rd_index != 0 {
+                register_file.write(_rd_index, register_file.csr.read(_i_imm));
+                register_file.csr.write(_i_imm, register_file.read(_rs1));
+            }
         }
         Instruction::CSRRS(_rd_index, _rs1, _i_imm) => {
             let _csr_value = register_file.csr.read(_i_imm);
             register_file.write(_rd_index, _csr_value);
             if _rs1 != 0 {
-	            register_file
-	                .csr
-	                .write(_i_imm, register_file.read(_rs1) | _csr_value);
-	        }
+                register_file
+                    .csr
+                    .write(_i_imm, register_file.read(_rs1) | _csr_value);
+            }
         }
         Instruction::CSRRC(_rd_index, _rs1, _i_imm) => {
             let _csr_value = register_file.csr.read(_i_imm);
             register_file.write(_rd_index, _csr_value);
             if _rs1 != 0 {
-	            register_file
-	                .csr
-	                .write(_i_imm, !register_file.read(_rs1) & _csr_value);
-	        }
+                register_file
+                    .csr
+                    .write(_i_imm, !register_file.read(_rs1) & _csr_value);
+            }
         }
         Instruction::CSRRWI(_rd_index, _rs1, _i_imm) => {
             /* _rs1 is actual an immediate */
             let uimm = _rs1 as u32;
             if _rd_index != 0 {
-            	register_file.write(_rd_index, register_file.csr.read(_i_imm));
+                register_file.write(_rd_index, register_file.csr.read(_i_imm));
             }
             register_file.csr.write(_i_imm, uimm);
         }
@@ -355,7 +354,7 @@ pub fn exec(
             let _csr_value = register_file.csr.read(_i_imm);
             register_file.write(_rd_index, _csr_value);
             if uimm != 0 {
-            	register_file.csr.write(_i_imm, uimm | _csr_value);
+                register_file.csr.write(_i_imm, uimm | _csr_value);
             }
         }
         Instruction::CSRRCI(_rd_index, _rs1, _i_imm) => {
@@ -364,7 +363,7 @@ pub fn exec(
             let _csr_value = register_file.csr.read(_i_imm);
             register_file.write(_rd_index, _csr_value);
             if uimm != 0 {
-            	register_file.csr.write(_i_imm, !uimm & _csr_value);
+                register_file.csr.write(_i_imm, !uimm & _csr_value);
             }
         }
         Instruction::MUL(rdindex, rs1index, rs2index) => {
@@ -393,4 +392,5 @@ pub fn exec(
         }
     }
     register_file.pc += 4;
+    true
 }
