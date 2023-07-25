@@ -52,7 +52,8 @@ fn main() -> anyhow::Result<()> {
     if args.headless {
         loop {
             let inst = decode(memory.read_word(register_file.pc as usize)).unwrap();
-            if !exec(&mut register_file, &mut memory, &inst, true, false) {
+
+            if !exec(&mut register_file, &mut memory, &inst, true, true) {
                 break;
             }
         }

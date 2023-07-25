@@ -375,28 +375,77 @@ pub fn exec(
             }
         }
         Instruction::MUL(rdindex, rs1index, rs2index) => {
-            todo!();
+            let _rs1: RS1value = register_file.read(rs1index);
+            let _rs2: RS2value = register_file.read(rs2index);
+            // Rust panics if the result of the multiplication overflows. The RISC-V spec doesn't care and just stores the low 32 bits
+            // For this reason, the multiplication is done on 64-bit numbers and then typecasted.
+            let _rs1_64 = _rs1 as u64;
+            let _rs2_64 = _rs2 as u64;
+            register_file.write(rdindex, (_rs1_64* _rs2_64) as u32);
         }
         Instruction::MULH(rdindex, rs1index, rs2index) => {
-            todo!();
+            let _rs1: RS1value = register_file.read(rs1index);
+            let _rs2: RS2value = register_file.read(rs2index);
+            let result: i64 = (i64::from(_rs1)) * (i64::from(_rs2));
+            let high_bytes: u32 = (result >> 32) as u32;
+            register_file.write(rdindex, high_bytes);
         }
         Instruction::MULHSU(rdindex, rs1index, rs2index) => {
-            todo!();
+            let _rs1: RS1value = register_file.read(rs1index);
+            let _rs2: RS2value = register_file.read(rs2index);
+            let result = i64::from(_rs1).wrapping_mul(i64::from(_rs2));
+            let high_bytes: u32 = (result >> 32) as u32;
+            register_file.write(rdindex, high_bytes);
         }
         Instruction::MULHU(rdindex, rs1index, rs2index) => {
-            todo!();
+            let _rs1: RS1value = register_file.read(rs1index);
+            let _rs2: RS2value = register_file.read(rs2index);
+            let result: u64 = (_rs1 as u64 * _rs2 as u64);
+            let high_bytes: u32 = (result >> 32) as u32;
+            register_file.write(rdindex, high_bytes);
         }
         Instruction::DIV(rdindex, rs1index, rs2index) => {
-            todo!();
+            let _rs1: RS1value = register_file.read(rs1index);
+            let _rs2: RS2value = register_file.read(rs2index);
+            if (_rs2 == 0) {
+                // The spec defines that -1 should be stored. In 32-bit two's complement, u32::MAX is -1
+                register_file.write(rdindex, u32::MAX);
+            }
+            else {
+                let result: i32 = (_rs1 / _rs2) as i32;
+                register_file.write(rdindex, result as u32);
+            } 
         }
         Instruction::DIVU(rdindex, rs1index, rs2index) => {
-            todo!();
+            let _rs1: RS1value = register_file.read(rs1index);
+            let _rs2: RS2value = register_file.read(rs2index);
+            if (_rs2 == 0) {
+                register_file.write(rdindex, u32::MAX);
+            }
+            else {
+                register_file.write(rdindex, _rs1 / _rs2);
+            }
         }
         Instruction::REM(rdindex, rs1index, rs2index) => {
-            todo!();
+            let _rs1: RS1value = register_file.read(rs1index);
+            let _rs2: RS2value = register_file.read(rs2index);
+            if (_rs2 == 0) {
+                register_file.write(rdindex, _rs1);
+            }
+            else {
+                let result: i32 = (_rs1 % _rs2) as i32;
+                register_file.write(rdindex, result as u32);
+            }
         }
         Instruction::REMU(rdindex, rs1index, rs2index) => {
-            todo!();
+            let _rs1: RS1value = register_file.read(rs1index);
+            let _rs2: RS2value = register_file.read(rs2index);
+            if (_rs2 == 0) {
+                register_file.write(rdindex, _rs1);
+            }
+            else {
+                register_file.write(rdindex, _rs1 % _rs2);
+            }
         }
     }
     register_file.pc += 4;
