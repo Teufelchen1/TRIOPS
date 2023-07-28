@@ -58,23 +58,11 @@ impl CSR {
 
     pub fn write(&mut self, index: u32, value: u32) {
         match index {
-            0xF11 => {
-                panic!("Attempt to write to read-only CSR!");
-            }
-            0xF12 => {
-                panic!("Attempt to write to read-only CSR!");
-            }
-            0xF13 => {
-                panic!("Attempt to write to read-only CSR!");
-            }
-            0xF14 => {
-                panic!("Attempt to write to read-only CSR!");
-            }
-            0xF15 => {
+            0xF11 | 0xF12 | 0xF13 | 0xF14 | 0xF15 => {
                 panic!("Attempt to write to read-only CSR!");
             }
             0x300 => {
-                println!("Ingoring write of {:X} into mstatus", value);
+                println!("Ingoring write of {value:X} into mstatus");
                 self.mstatus = 0;
             }
             0x301 => {
@@ -82,29 +70,32 @@ impl CSR {
                 self.misa = 0;
             }
             0x302 => {
-                println!("Ingoring write of {:X} into medeleg", value);
+                println!("Ingoring write of {value:X} into medeleg");
                 self.medeleg = 0;
             }
             0x303 => {
-                println!("Ingoring write of {:X} into mideleg", value);
+                println!("Ingoring write of {value:X} into mideleg");
                 self.mideleg = 0;
             }
             0x304 => {
-                println!("Ingoring write of {:X} into mie", value);
+                println!("Ingoring write of {value:X} into mie");
                 self.mie = 0;
             }
             0x305 => {
                 if value % 4 != 0 {
-                    panic!("mtvec value not 4-byte aligned or mode other than Direct selected");
+                    assert!(
+                        value % 4 == 0,
+                        "mtvec value not 4-byte aligned or mode other than Direct selected"
+                    );
                 }
                 self.mtvec = value;
             }
             0x306 => {
-                println!("Ingoring write of {:X} into mcounteren", value);
+                println!("Ingoring write of {value:X} into mcounteren");
                 self.mcounteren = 0;
             }
             0x310 => {
-                println!("Ingoring write of {:X} into mstatush", value);
+                println!("Ingoring write of {value:X} into mstatush");
                 self.mstatush = 0;
             }
             0x340 => {
@@ -117,19 +108,19 @@ impl CSR {
                 self.mcause = value;
             }
             0x343 => {
-                println!("Ingoring write of {:X} into mtval", value);
+                println!("Ingoring write of {value:X} into mtval");
                 self.mtval = 0;
             }
             0x344 => {
-                println!("Ingoring write of {:X} into mip", value);
+                println!("Ingoring write of {value:X} into mip");
                 self.mip = 0;
             }
             0x34A => {
-                println!("Ingoring write of {:X} into mtinst", value);
+                println!("Ingoring write of {value:X} into mtinst");
                 self.mtinst = 0;
             }
             0x34B => {
-                println!("Ingoring write of {:X} into mtval2", value);
+                println!("Ingoring write of {value:X} into mtval2");
                 self.mtval2 = 0;
             }
             _ => {
@@ -205,13 +196,13 @@ impl Memory {
     pub fn read_byte(&self, addr: usize) -> u32 {
         if self.is_ram(addr) {
             let index = addr - self.ram_base;
-            return self.ram[index] as u32;
+            return u32::from(self.ram[index]);
         }
         if self.is_rom(addr) {
             let index = addr - self.rom_base;
-            return self.rom[index] as u32;
+            return u32::from(self.rom[index]);
         }
-        panic!("Memory access outside memory map: 0x{:X}", addr);
+        panic!("Memory access outside memory map: 0x{addr:X}");
     }
     pub fn read_halfword(&self, index: usize) -> u32 {
         (self.read_byte(index + 1) << 8) + self.read_byte(index)
@@ -229,7 +220,7 @@ impl Memory {
             print!("{:}", char::from_u32(value).unwrap());
             return;
         }
-        panic!("Memory access outside memory map: 0x{:X}", addr);
+        panic!("Memory access outside memory map: 0x{addr:X}");
     }
     pub fn write_halfword(&mut self, index: usize, value: u32) {
         self.write_byte(index, value);

@@ -1,5 +1,6 @@
 #![allow(unused)]
 #![allow(clippy::upper_case_acronyms)]
+#![allow(clippy::cast_possible_wrap)]
 
 use std::env;
 use std::fs;
@@ -19,7 +20,7 @@ use crossterm::{
 };
 
 mod ui;
-use ui::UiData;
+use ui::ViewState;
 
 mod decoder;
 use decoder::{decode, Instruction};
@@ -46,12 +47,12 @@ fn main() -> anyhow::Result<()> {
 
     let mut register_file: RegisterFile = RegisterFile::default();
     let mut memory: Memory = Memory::default_ram(fs::read(args.file).unwrap());
-    register_file.pc = memory.ram_base as u32;
+    register_file.pc = u32::try_from(memory.ram_base).unwrap();
 
     if args.headless {
         loop {
             let inst = decode(memory.read_word(register_file.pc as usize)).unwrap();
-            if !exec(&mut register_file, &mut memory, inst, true, false) {
+            if !exec(&mut register_file, &mut memory, &inst, true, false) {
                 break;
             }
         }
@@ -63,7 +64,7 @@ fn main() -> anyhow::Result<()> {
         let mut terminal = Terminal::new(backend)?;
         terminal.clear();
 
-        let mut ui = UiData::new();
+        let mut ui = ViewState::new();
 
         loop {
             terminal.draw(|f| ui.ui(f, &register_file, &memory))?;
@@ -75,7 +76,7 @@ fn main() -> anyhow::Result<()> {
                     }
                     KeyCode::Char('s') => {
                         let inst = decode(memory.read_word(register_file.pc as usize)).unwrap();
-                        if !exec(&mut register_file, &mut memory, inst, true, false) {
+                        if !exec(&mut register_file, &mut memory, &inst, true, false) {
                             break;
                         }
                     }

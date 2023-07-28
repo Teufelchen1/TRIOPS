@@ -11,15 +11,15 @@ use tui::{
     Frame, Terminal,
 };
 
-pub struct UiData {
+pub struct ViewState {
     register_table: Vec<Vec<String>>,
     list_state: ListState,
     instruction_list: Vec<String>,
 }
 
-impl UiData {
-    pub fn new() -> UiData {
-        UiData {
+impl ViewState {
+    pub fn new() -> ViewState {
+        ViewState {
             register_table: vec![
                 vec![
                     "x0: 0x00000000".to_string(),
@@ -100,7 +100,7 @@ impl UiData {
                     "0x{:08X}: {:08X}",
                     rf.pc + n * 4,
                     mem.read_word((rf.pc + n * 4) as usize)
-                ))
+                ));
             }
         }
         while self.instruction_list.len() > 20 {
@@ -142,9 +142,8 @@ impl UiData {
             .collect();
         let list = List::new(items)
             .block(instruction_listing)
-            .style(Style::default().fg(Color::White))
             .highlight_style(Style::default().add_modifier(Modifier::ITALIC))
-            .highlight_symbol(">>");
+            .highlight_symbol("->");
         f.render_stateful_widget(list, chunks[0], &mut self.list_state);
 
         let register_file_table = Block::default()
