@@ -198,13 +198,11 @@ pub fn exec(
             let rs2: RS2value = register_file.read(rs2index);
             let sign_imm = sign_extend(simmediate, 12) as i32;
             let target = add_signed!(rs1, sign_imm) as usize;
-            //println!("{:}, {:}, {:}", rs1, rs2, sign_imm);
             memory.write_word(target, rs2);
         }
         Instruction::ADDI(rdindex, rs1index, iimmediate) => {
             let rs1: RS1value = register_file.read(rs1index);
             let sign_imm = sign_extend(iimmediate, 12) as i32;
-            //println!("{:b}, {:b}, {:}", iimmediate, sign_imm, sign_imm);
             register_file.write(rdindex, add_signed!(rs1, sign_imm));
         }
         Instruction::SLTI(rdindex, rs1index, iimmediate) => {

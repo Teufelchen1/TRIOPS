@@ -66,7 +66,7 @@ fn main() -> anyhow::Result<()> {
 
     for phdr in elffile.segments().unwrap() {
         if phdr.p_type == abi::PT_LOAD {
-            let mut addr = phdr.p_paddr as usize;
+            let mut addr = usize::try_from(phdr.p_paddr).unwrap();
             if memory.is_rom(addr) {
                 for i in elffile.segment_data(&phdr).unwrap() {
                     memory.rom[addr - memory.rom_base] = *i;
@@ -81,7 +81,7 @@ fn main() -> anyhow::Result<()> {
         }
     }
 
-    register_file.pc = elffile.ehdr.e_entry as u32;
+    register_file.pc = u32::try_from(elffile.ehdr.e_entry).unwrap();
 
     if args.headless {
         loop {
