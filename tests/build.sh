@@ -25,16 +25,16 @@ for file in src/isa/rv32ui-p-* src/isa/rv32um-p-*; do
 		continue
 	fi
 
-	riscv64-unknown-elf-objcopy --strip-debug -O binary ${file} ./test.hex
+	# riscv64-unknown-elf-objcopy --strip-debug -O binary ${file} ./test.hex
 
-	ret=0; ../target/debug/rv --file "./test.hex" --headless > /dev/null || ret=$?
+	ret=0; ../target/debug/rv --file ${file} --headless > /dev/null || ret=$?
 	if [ "${ret}" -ne 0 ]; then
 		exit=1
-		printf "FAIL\n"
+		printf "FAIL ❌\n"
 		continue
 	fi
 
-	printf "OK\n"
+	printf "OK ✅\n"
 done
 
 exit "${exit}"

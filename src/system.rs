@@ -147,6 +147,44 @@ impl RegisterFile {
             self.regs[index] = value;
         }
     }
+
+    pub fn to_string(&self, index: Rindex) -> String {
+        match index {
+            0x00 => format!("zero: 0x{:08X}({:})", self.regs[index], self.regs[index] as i32),
+            0x01 => format!("ra: 0x{:08X}({:})", self.regs[index], self.regs[index] as i32),
+            0x02 => format!("sp: 0x{:08X}({:})", self.regs[index], self.regs[index] as i32),
+            0x03 => format!("gp: 0x{:08X}({:})", self.regs[index], self.regs[index] as i32),
+            0x04 => format!("tp: 0x{:08X}({:})", self.regs[index], self.regs[index] as i32),
+            0x05 => format!("t0: 0x{:08X}({:})", self.regs[index], self.regs[index] as i32),
+            0x06 => format!("t1: 0x{:08X}({:})", self.regs[index], self.regs[index] as i32),
+            0x07 => format!("t2: 0x{:08X}({:})", self.regs[index], self.regs[index] as i32),
+            0x08 => format!("s0: 0x{:08X}({:})", self.regs[index], self.regs[index] as i32),
+            0x09 => format!("s1: 0x{:08X}({:})", self.regs[index], self.regs[index] as i32),
+            0x0A => format!("a0: 0x{:08X}({:})", self.regs[index], self.regs[index] as i32),
+            0x0B => format!("a1: 0x{:08X}({:})", self.regs[index], self.regs[index] as i32),
+            0x0C => format!("a2: 0x{:08X}({:})", self.regs[index], self.regs[index] as i32),
+            0x0D => format!("a3: 0x{:08X}({:})", self.regs[index], self.regs[index] as i32),
+            0x0E => format!("a4: 0x{:08X}({:})", self.regs[index], self.regs[index] as i32),
+            0x0F => format!("a5: 0x{:08X}({:})", self.regs[index], self.regs[index] as i32),
+            0x10 => format!("a6: 0x{:08X}({:})", self.regs[index], self.regs[index] as i32),
+            0x11 => format!("a7: 0x{:08X}({:})", self.regs[index], self.regs[index] as i32),
+            0x12 => format!("s2: 0x{:08X}({:})", self.regs[index], self.regs[index] as i32),
+            0x13 => format!("s3: 0x{:08X}({:})", self.regs[index], self.regs[index] as i32),
+            0x14 => format!("s4: 0x{:08X}({:})", self.regs[index], self.regs[index] as i32),
+            0x15 => format!("s5: 0x{:08X}({:})", self.regs[index], self.regs[index] as i32),
+            0x16 => format!("s6: 0x{:08X}({:})", self.regs[index], self.regs[index] as i32),
+            0x17 => format!("s7: 0x{:08X}({:})", self.regs[index], self.regs[index] as i32),
+            0x18 => format!("s8: 0x{:08X}({:})", self.regs[index], self.regs[index] as i32),
+            0x19 => format!("s9: 0x{:08X}({:})", self.regs[index], self.regs[index] as i32),
+            0x1A => format!("s10: 0x{:08X}({:})", self.regs[index], self.regs[index] as i32),
+            0x1B => format!("s11: 0x{:08X}({:})", self.regs[index], self.regs[index] as i32),
+            0x1C => format!("t3: 0x{:08X}({:})", self.regs[index], self.regs[index] as i32),
+            0x1D => format!("t4: 0x{:08X}({:})", self.regs[index], self.regs[index] as i32),
+            0x1E => format!("t5: 0x{:08X}({:})", self.regs[index], self.regs[index] as i32),
+            0x1F => format!("t6: 0x{:08X}({:})", self.regs[index], self.regs[index] as i32),
+            _ => panic!("Unkown registers"),
+        }
+    }
 }
 
 pub struct Memory {

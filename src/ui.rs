@@ -79,9 +79,7 @@ impl ViewState {
         for k in 0..8 {
             for n in 0..4 {
                 let index = k * 4 + n;
-                self.register_table[k][n] =
-                    format!("x{:}: 0x{:08X}({:})", index, rf.read(index), rf.read(index))
-                        .to_string();
+                self.register_table[k][n] = rf.to_string(index);
             }
         }
     }

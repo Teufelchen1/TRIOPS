@@ -21,6 +21,17 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 
+use elf::ElfBytes;
+use elf::endian::AnyEndian;
+use elf::section::SectionHeader;
+use elf::parse::ParsingTable;
+use elf::segment::ProgramHeader;
+use elf::segment::SegmentTable;
+use elf::ElfStream;
+use elf::abi;
+
+use comfy_table::{Cell, Table};
+
 mod ui;
 use ui::ViewState;
 
@@ -47,8 +58,27 @@ struct Args {
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
 
+    let path = std::path::PathBuf::from(args.file);
+    let file_data = std::fs::read(path).unwrap();
+    let slice = file_data.as_slice();
+    let file = ElfBytes::<AnyEndian>::minimal_parse(slice).unwrap();
+    
+    let mut ram: Vec<u8> = vec!();
+
+    for phdr in file.segments().unwrap() {
+        if phdr.p_type == abi::PT_LOAD {
+            println!("Addr: {:#X}, Size: {:#X}", phdr.p_paddr, phdr.p_filesz);
+            let start = (phdr.p_paddr - 0x8000_0000) as usize;
+            if start > ram.len() {
+                ram.resize(start, 0);
+            }
+            ram.extend_from_slice(file.segment_data(&phdr).unwrap());
+        }
+    }
+
     let mut register_file: RegisterFile = RegisterFile::default();
-    let mut memory: Memory = Memory::default_ram(fs::read(args.file).unwrap());
+    //let mut memory: Memory = Memory::default_ram(fs::read(args.file).unwrap());
+    let mut memory: Memory = Memory::default_ram(ram);
     register_file.pc = u32::try_from(memory.ram_base).unwrap();
 
     if args.headless {
