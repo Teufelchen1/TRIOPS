@@ -1,10 +1,8 @@
+ENTRY( _start )
+
 SECTIONS
 {
     .  = 0x20000000;
-    .entry :
-    {
-        
-    }
     .text : 
     {
         *(.text)

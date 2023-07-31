@@ -189,46 +189,39 @@ impl RegisterFile {
 
 pub struct Memory {
     pub io_base: usize,
-    pub io_len: usize,
+    pub io_limit: usize,
     pub ram_base: usize,
+    pub ram_limit: usize,
     pub ram: Vec<u8>,
     pub rom_base: usize,
+    pub rom_limit: usize,
     pub rom: Vec<u8>,
 }
 
 impl Memory {
-    pub fn default_rom(rom: Vec<u8>) -> Self {
+    pub fn default_hifive() -> Self {
         Self {
-            io_base: 0x6000_0000,
-            io_len: 0x01,
-            ram_base: 0x8000_0000,
-            ram: [0; 4096].to_vec(),
+            io_base: 0x0000_0000,
+            io_limit: 0x2000_0000,
             rom_base: 0x2000_0000,
-            rom,
+            rom_limit: 0x4000_0000,
+            rom: vec![0; 0x2000_0000],
+            ram_base: 0x8000_0000,
+            ram_limit: 0x8000_4000,
+            ram: vec![0; 0x4000],
         }
     }
 
-    pub fn default_ram(ram: Vec<u8>) -> Self {
-        Self {
-            io_base: 0x6000_0000,
-            io_len: 0x01,
-            ram_base: 0x8000_0000,
-            ram,
-            rom_base: 0x2000_0000,
-            rom: [0; 4096].to_vec(),
-        }
+    pub fn is_io(&self, addr: usize) -> bool {
+        self.io_base <= addr && addr < self.io_limit
     }
 
-    fn is_io(&self, addr: usize) -> bool {
-        self.io_base <= addr && addr < self.io_base + self.io_len
+    pub fn is_ram(&self, addr: usize) -> bool {
+        self.ram_base <= addr && addr < self.ram_limit
     }
 
-    fn is_ram(&self, addr: usize) -> bool {
-        self.ram_base <= addr && addr < self.ram_base + self.ram.len()
-    }
-
-    fn is_rom(&self, addr: usize) -> bool {
-        self.rom_base <= addr && addr < self.rom_base + self.rom.len()
+    pub fn is_rom(&self, addr: usize) -> bool {
+        self.rom_base <= addr && addr < self.rom_limit
     }
 
     pub fn read_byte(&self, addr: usize) -> u32 {

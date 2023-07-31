@@ -46,11 +46,9 @@ use system::{Memory, RegisterFile};
 
 #[derive(Parser, Debug)]
 struct Args {
-    /// Name of the person to greet
     #[arg(short, long)]
     file: String,
 
-    /// Number of times to greet
     #[arg(long, default_value_t = false)]
     headless: bool,
 }
@@ -61,25 +59,29 @@ fn main() -> anyhow::Result<()> {
     let path = std::path::PathBuf::from(args.file);
     let file_data = std::fs::read(path).unwrap();
     let slice = file_data.as_slice();
-    let file = ElfBytes::<AnyEndian>::minimal_parse(slice).unwrap();
+    let elffile = ElfBytes::<AnyEndian>::minimal_parse(slice).unwrap();
     
-    let mut ram: Vec<u8> = vec!();
+    let mut register_file: RegisterFile = RegisterFile::default();
+    let mut memory: Memory = Memory::default_hifive();
 
-    for phdr in file.segments().unwrap() {
+    for phdr in elffile.segments().unwrap() {
         if phdr.p_type == abi::PT_LOAD {
-            println!("Addr: {:#X}, Size: {:#X}", phdr.p_paddr, phdr.p_filesz);
-            let start = (phdr.p_paddr - 0x8000_0000) as usize;
-            if start > ram.len() {
-                ram.resize(start, 0);
+            let mut addr = phdr.p_paddr as usize;
+            if memory.is_rom(addr) {
+                for i in elffile.segment_data(&phdr).unwrap() {
+                    memory.rom[addr - memory.rom_base] = *i;
+                    addr += 1;
+                }
+            } else if memory.is_ram(addr) {
+                for i in elffile.segment_data(&phdr).unwrap() {
+                    memory.ram[addr - memory.ram_base] = *i;
+                    addr += 1;
+                }
             }
-            ram.extend_from_slice(file.segment_data(&phdr).unwrap());
         }
     }
 
-    let mut register_file: RegisterFile = RegisterFile::default();
-    //let mut memory: Memory = Memory::default_ram(fs::read(args.file).unwrap());
-    let mut memory: Memory = Memory::default_ram(ram);
-    register_file.pc = u32::try_from(memory.ram_base).unwrap();
+    register_file.pc = elffile.ehdr.e_entry as u32;
 
     if args.headless {
         loop {
