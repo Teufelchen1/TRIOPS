@@ -1,6 +1,8 @@
 #![allow(unused)]
 #![allow(clippy::upper_case_acronyms)]
 #![allow(clippy::cast_possible_wrap)]
+#![allow(clippy::cast_possible_truncation)]
+#![allow(clippy::cast_sign_loss)]
 
 use std::env;
 use std::fs;
@@ -77,7 +79,7 @@ fn main() -> anyhow::Result<()> {
                     }
                     KeyCode::Char('s') => {
                         let inst = decode(memory.read_word(register_file.pc as usize)).unwrap();
-                        if !exec(&mut register_file, &mut memory, &inst, true, false) {
+                        if !exec(&mut register_file, &mut memory, &inst, true, true) {
                             break;
                         }
                     }

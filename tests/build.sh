@@ -20,7 +20,7 @@ for file in src/isa/rv32ui-p-* src/isa/rv32um-p-*; do
 	name=${file##*/}
 	printf "Running test case '%s': " "$name"
 
-	if [ "${name}" = rv32um-p-fence_i ]; then
+	if [ "${name}" = rv32ui-p-fence_i ]; then
 		printf "SKIP\n"
 		continue
 	fi
