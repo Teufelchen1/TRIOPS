@@ -1,14 +1,13 @@
 use crate::decoder::decode;
 use crate::system::{Memory, RegisterFile};
-use std::iter::Map;
 
 use tui::{
-    backend::{Backend, CrosstermBackend},
+    backend::Backend,
     layout::{Alignment, Constraint, Direction, Layout},
-    style::{Color, Modifier, Style},
+    style::{Modifier, Style},
     text::Span,
     widgets::{Block, BorderType, Borders, Cell, List, ListItem, ListState, Row, Table},
-    Frame, Terminal,
+    Frame,
 };
 
 pub struct ViewState {

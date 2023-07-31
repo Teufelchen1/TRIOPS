@@ -4,39 +4,30 @@
 #![allow(clippy::cast_possible_truncation)]
 #![allow(clippy::cast_sign_loss)]
 
-use std::env;
-use std::fs;
 use std::io;
 
 use clap::Parser;
 
 use tui::{
-    backend::{Backend, CrosstermBackend},
+    backend::CrosstermBackend,
     Terminal,
 };
 
 use crossterm::{
-    event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
+    event::{self, DisableMouseCapture, Event, KeyCode},
     execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    terminal::{disable_raw_mode, enable_raw_mode, LeaveAlternateScreen},
 };
 
 use elf::ElfBytes;
 use elf::endian::AnyEndian;
-use elf::section::SectionHeader;
-use elf::parse::ParsingTable;
-use elf::segment::ProgramHeader;
-use elf::segment::SegmentTable;
-use elf::ElfStream;
 use elf::abi;
-
-use comfy_table::{Cell, Table};
 
 mod ui;
 use ui::ViewState;
 
 mod decoder;
-use decoder::{decode, Instruction};
+use decoder::decode;
 
 mod executer;
 use executer::exec;
@@ -97,7 +88,7 @@ fn main() -> anyhow::Result<()> {
         let stdout = io::stdout();
         let backend = CrosstermBackend::new(stdout);
         let mut terminal = Terminal::new(backend)?;
-        terminal.clear();
+        let _ = terminal.clear();
 
         let mut ui = ViewState::new();
 
