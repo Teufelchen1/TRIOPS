@@ -278,8 +278,8 @@ pub fn decode(instruction: u32) -> Result<Instruction, &'static str> {
                 _ => Err("Invalid funct3 I-Type"),
             }
         }
-        OpCode::LOADFP => todo!(),
-        OpCode::CUSTOM0 => todo!(),
+        OpCode::LOADFP => Err("Not implemented: LOADFP"),
+        OpCode::CUSTOM0 => Err("Not implemented: CUSTOM0"),
         OpCode::MISCMEM => {
             let rd_index: RDindex = rd(instruction);
             let rs1: RS1index = rs1(instruction);
@@ -315,8 +315,8 @@ pub fn decode(instruction: u32) -> Result<Instruction, &'static str> {
             let u_imm: Uimmediate = immediate_u(instruction);
             Ok(Instruction::AUIPC(rd_index, u_imm))
         }
-        OpCode::OPIMM32 => todo!(),
-        OpCode::LEN48 => todo!(),
+        OpCode::OPIMM32 => Err("Not implemented: OPIMM32"),
+        OpCode::LEN48 => Err("Not implemented: LEN48"),
         OpCode::STORE => {
             /* STOREs are S-Type */
             let rs1: RS1index = rs1(instruction);
@@ -329,9 +329,9 @@ pub fn decode(instruction: u32) -> Result<Instruction, &'static str> {
                 _ => Err("Invalid funct3 S-Type"),
             }
         }
-        OpCode::STOREFP => todo!(),
-        OpCode::CUSTOM1 => todo!(),
-        OpCode::AMO => todo!(),
+        OpCode::STOREFP => Err("Not implemented: STOREFP"),
+        OpCode::CUSTOM1 => Err("Not implemented: CUSTOM1"),
+        OpCode::AMO => Err("Not implemented: AMO"),
         OpCode::OP => {
             /* All OP are R-Type instructions */
             let rd_index: RDindex = rd(instruction);
@@ -405,16 +405,16 @@ pub fn decode(instruction: u32) -> Result<Instruction, &'static str> {
             let u_imm: Uimmediate = immediate_u(instruction);
             Ok(Instruction::LUI(rd_index, u_imm))
         }
-        OpCode::OP32 => todo!(),
-        OpCode::LEN64 => todo!(),
-        OpCode::MADD => todo!(),
-        OpCode::MSUB => todo!(),
-        OpCode::NMSUB => todo!(),
-        OpCode::NMADD => todo!(),
-        OpCode::OPFP => todo!(),
-        OpCode::RESERVED1 => todo!(),
-        OpCode::CUSTOM2 => todo!(),
-        OpCode::LEN482 => todo!(),
+        OpCode::OP32 => Err("Not implemented: OP32"),
+        OpCode::LEN64 => Err("Not implemented: LEN64"),
+        OpCode::MADD => Err("Not implemented: MADD"),
+        OpCode::MSUB => Err("Not implemented: MSUB"),
+        OpCode::NMSUB => Err("Not implemented: NMSUB"),
+        OpCode::NMADD => Err("Not implemented: NMADD"),
+        OpCode::OPFP => Err("Not implemented: OPFP"),
+        OpCode::RESERVED1 => Err("Not implemented: RESERVED1"),
+        OpCode::CUSTOM2 => Err("Not implemented: CUSTOM2"),
+        OpCode::LEN482 => Err("Not implemented: LEN482"),
         OpCode::BRANCH => {
             /* B-Type instructions */
             let rs1: RS1index = rs1(instruction);
@@ -437,7 +437,7 @@ pub fn decode(instruction: u32) -> Result<Instruction, &'static str> {
             let i_imm: Iimmediate = immediate_i(instruction);
             Ok(Instruction::JALR(rd_index, rs1, i_imm))
         }
-        OpCode::RESERVED2 => todo!(),
+        OpCode::RESERVED2 => Err("Not implemented: RESERVED2"),
         OpCode::JAL => {
             let rd_index: RDindex = rd(instruction);
             let j_imm: Jimmediate = immediate_j(instruction);
@@ -473,8 +473,8 @@ pub fn decode(instruction: u32) -> Result<Instruction, &'static str> {
                 _ => Err("Invalid funct3 I-Type"),
             }
         }
-        OpCode::RESERVED3 => todo!(),
-        OpCode::CUSTOM3 => todo!(),
-        OpCode::LEN80 => todo!(),
+        OpCode::RESERVED3 => Err("Not implemented: RESERVED3"),
+        OpCode::CUSTOM3 => Err("Not implemented: CUSTOM3"),
+        OpCode::LEN80 => Err("Not implemented: LEN80"),
     }
 }
