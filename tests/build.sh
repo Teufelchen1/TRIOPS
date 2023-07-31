@@ -9,18 +9,18 @@ banner() {
 }
 
 banner "Build tests"
-make -C src/isa XLEN=${XLEN} rv32um
+make -C src/isa XLEN=${XLEN} rv32ui rv32um
 
 banner "Run tests"
 
 exit=0
-for file in src/isa/rv32um-p-*; do
+for file in src/isa/rv32ui-p-* src/isa/rv32um-p-*; do
 	[ -f "${file}" -a -x "${file}" ] || continue
 
 	name=${file##*/}
 	printf "Running test case '%s': " "$name"
 
-	if [ "${name}" = rv32um-p-fence_i ]; then
+	if [ "${name}" = rv32ui-p-fence_i ]; then
 		printf "SKIP\n"
 		continue
 	fi
