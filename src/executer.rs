@@ -384,14 +384,14 @@ pub fn exec(
         Instruction::MULH(rdindex, rs1index, rs2index) => {
             let rs1: RS1value = register_file.read(rs1index);
             let rs2: RS2value = register_file.read(rs2index);
-            let result: i64 = (i64::from(rs1)) * (i64::from(rs2));
+            let result: i64 = (i64::from(rs1 as i32)) * (i64::from(rs2 as i32));
             let high_bytes: u32 = (result >> 32) as u32;
             register_file.write(rdindex, high_bytes);
         }
         Instruction::MULHSU(rdindex, rs1index, rs2index) => {
             let rs1: RS1value = register_file.read(rs1index);
             let rs2: RS2value = register_file.read(rs2index);
-            let result = i64::from(rs1).wrapping_mul(i64::from(rs2));
+            let result = i64::from(rs1 as i32).wrapping_mul(i64::from(rs2));
             let high_bytes: u32 = (result >> 32) as u32;
             register_file.write(rdindex, high_bytes);
         }
@@ -409,8 +409,8 @@ pub fn exec(
                 // The spec defines that -1 should be stored. In 32-bit two's complement, u32::MAX is -1
                 register_file.write(rdindex, u32::MAX);
             } else {
-                let result: i32 = (rs1 / rs2) as i32;
-                register_file.write(rdindex, result as u32);
+                let result = (rs1 as i32).overflowing_div(rs2 as i32);
+                register_file.write(rdindex, result.0 as u32);
             }
         }
         Instruction::DIVU(rdindex, rs1index, rs2index) => {
@@ -428,8 +428,8 @@ pub fn exec(
             if (rs2 == 0) {
                 register_file.write(rdindex, rs1);
             } else {
-                let result: i32 = (rs1 % rs2) as i32;
-                register_file.write(rdindex, result as u32);
+                let result = (rs1 as i32).overflowing_rem(rs2 as i32);
+                register_file.write(rdindex, result.0 as u32);
             }
         }
         Instruction::REMU(rdindex, rs1index, rs2index) => {
