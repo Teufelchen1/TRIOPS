@@ -300,7 +300,7 @@ pub fn decode(instruction: u32) -> Result<Instruction, &'static str> {
                 0b111 => Ok(Instruction::ANDI(rd_index, rs1, i_imm)),
                 0b001 => Ok(Instruction::SLLI(rd_index, rs1, i_imm)),
                 0b101 => {
-                    if i_imm == 0 {
+                    if (i_imm & 0b0100_0000_0000) == 0 {
                         Ok(Instruction::SRLI(rd_index, rs1, i_imm))
                     } else {
                         Ok(Instruction::SRAI(rd_index, rs1, i_imm))

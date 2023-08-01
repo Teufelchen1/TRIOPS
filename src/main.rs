@@ -8,10 +8,7 @@ use std::io;
 
 use clap::Parser;
 
-use tui::{
-    backend::CrosstermBackend,
-    Terminal,
-};
+use tui::{backend::CrosstermBackend, Terminal};
 
 use crossterm::{
     event::{self, DisableMouseCapture, Event, KeyCode},
@@ -19,9 +16,9 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, LeaveAlternateScreen},
 };
 
-use elf::ElfBytes;
-use elf::endian::AnyEndian;
 use elf::abi;
+use elf::endian::AnyEndian;
+use elf::ElfBytes;
 
 mod ui;
 use ui::ViewState;
@@ -42,6 +39,9 @@ struct Args {
 
     #[arg(long, default_value_t = false)]
     headless: bool,
+
+    #[arg(long, default_value_t = false)]
+    testing: bool,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -51,7 +51,7 @@ fn main() -> anyhow::Result<()> {
     let file_data = std::fs::read(path).unwrap();
     let slice = file_data.as_slice();
     let elffile = ElfBytes::<AnyEndian>::minimal_parse(slice).unwrap();
-    
+
     let mut register_file: RegisterFile = RegisterFile::default();
     let mut memory: Memory = Memory::default_hifive();
 
@@ -82,7 +82,6 @@ fn main() -> anyhow::Result<()> {
                 break;
             }
         }
-        anyhow::ensure!(register_file.read(17) == 93, "Test failed");
     } else {
         enable_raw_mode()?;
         let stdout = io::stdout();
@@ -118,6 +117,10 @@ fn main() -> anyhow::Result<()> {
             DisableMouseCapture
         )?;
         terminal.show_cursor()?;
+    }
+
+    if args.testing {
+        anyhow::ensure!(register_file.read(17) == 93, "Test failed");
     }
 
     println!("\nDone!");

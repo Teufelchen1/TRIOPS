@@ -18,7 +18,7 @@ for file in src/isa/rv32ui-p-* src/isa/rv32um-p-*; do
 	[ -f "${file}" -a -x "${file}" ] || continue
 
 	name=${file##*/}
-	printf "Running test case '%s': " "$name"
+	printf "Running test case '%s':\t" "$name"
 
 	if [ "${name}" = rv32ui-p-fence_i ]; then
 		printf "SKIP\n"
@@ -27,14 +27,14 @@ for file in src/isa/rv32ui-p-* src/isa/rv32um-p-*; do
 
 	# riscv64-unknown-elf-objcopy --strip-debug -O binary ${file} ./test.hex
 
-	ret=0; ../target/debug/rv --file ${file} --headless > /dev/null || ret=$?
+	ret=0; ../target/debug/rv --file ${file} --headless --testing &> /dev/null || ret=$?
 	if [ "${ret}" -ne 0 ]; then
 		exit=1
 		printf "FAIL ❌\n"
 		continue
 	fi
 
-	printf "OK ✅\n"
+	printf "OKAY ✅\n"
 done
 
 exit "${exit}"
