@@ -402,7 +402,7 @@ impl Instruction {
                 register_name(rs1index),
                 register_name(rs2index)
             ),
-            _ => todo!(),
+            _ => format!("{:?}", self),
         }
     }
 }
