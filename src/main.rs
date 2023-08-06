@@ -23,6 +23,9 @@ use elf::ElfBytes;
 mod ui;
 use ui::ViewState;
 
+mod instructions;
+use instructions::Instruction;
+
 mod decoder;
 use decoder::decode;
 
@@ -121,8 +124,9 @@ fn main() -> anyhow::Result<()> {
 
     if args.testing {
         anyhow::ensure!(register_file.read(17) == 93, "Test failed");
+    } else {
+        println!("Done!");
     }
 
-    println!("\nDone!");
     Ok(())
 }

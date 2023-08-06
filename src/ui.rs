@@ -1,5 +1,5 @@
 use crate::decoder::decode;
-use crate::system::{Memory, RegisterFile};
+use crate::system::{register_name, Memory, RegisterFile};
 
 use tui::{
     backend::Backend,
@@ -90,8 +90,11 @@ impl ViewState {
         for n in 0..11 {
             let inst = decode(mem.read_word((rf.pc + n * 4) as usize));
             if inst.is_ok() {
-                self.instruction_list
-                    .push(format!("0x{:08X}: {:?}", rf.pc + n * 4, inst.unwrap()));
+                self.instruction_list.push(format!(
+                    "0x{:08X}: {:}",
+                    rf.pc + n * 4,
+                    inst.unwrap().print()
+                ));
             } else {
                 self.instruction_list.push(format!(
                     "0x{:08X}: {:08X}",

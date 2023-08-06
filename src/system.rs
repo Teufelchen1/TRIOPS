@@ -1,5 +1,43 @@
 use crate::decoder::Rindex;
 
+pub fn register_name(register: Rindex) -> &'static str {
+    match register {
+        0x00 => "zero",
+        0x01 => "ra",
+        0x02 => "sp",
+        0x03 => "gp",
+        0x04 => "tp",
+        0x05 => "t0",
+        0x06 => "t1",
+        0x07 => "t2",
+        0x08 => "s0",
+        0x09 => "s1",
+        0x0A => "a0",
+        0x0B => "a1",
+        0x0C => "a2",
+        0x0D => "a3",
+        0x0E => "a4",
+        0x0F => "a5",
+        0x10 => "a6",
+        0x11 => "a7",
+        0x12 => "s2",
+        0x13 => "s3",
+        0x14 => "s4",
+        0x15 => "s5",
+        0x16 => "s6",
+        0x17 => "s7",
+        0x18 => "s8",
+        0x19 => "s9",
+        0x1A => "s10",
+        0x1B => "s11",
+        0x1C => "t3",
+        0x1D => "t4",
+        0x1E => "t5",
+        0x1F => "t6",
+        _ => panic!("Unkown register"),
+    }
+}
+
 #[derive(Default)]
 pub struct CSR {
     /* Machine Information Registers */

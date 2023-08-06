@@ -1,4 +1,5 @@
-use crate::decoder::{Instruction, RS1value, RS2value};
+use crate::decoder::{RS1value, RS2value};
+use crate::instructions::Instruction;
 use crate::system::{Memory, RegisterFile};
 
 fn sign_extend(num: u32, bitnum: u32) -> u32 {

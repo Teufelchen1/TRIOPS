@@ -1,3 +1,5 @@
+use crate::instructions::Instruction;
+
 pub type Rindex = usize;
 pub type RDindex = Rindex;
 pub type RS1index = Rindex;
@@ -6,11 +8,11 @@ pub type RS2index = Rindex;
 pub type RS1value = u32;
 pub type RS2value = u32;
 
-type Iimmediate = u32;
-type Simmediate = u32;
-type Bimmediate = u32;
-type Uimmediate = u32;
-type Jimmediate = u32;
+pub type Iimmediate = u32;
+pub type Simmediate = u32;
+pub type Bimmediate = u32;
+pub type Uimmediate = u32;
+pub type Jimmediate = u32;
 
 type Funct3 = u32;
 type Funct7 = u32;
@@ -115,95 +117,6 @@ pub enum OpCode {
     RESERVED3,
     CUSTOM3,
     LEN80,
-}
-
-#[derive(Debug)]
-pub enum Instruction {
-    /* RV32I */
-    LUI(RDindex, Uimmediate),
-    AUIPC(RDindex, Uimmediate),
-    JAL(RDindex, Jimmediate),
-    JALR(RDindex, RS1index, Iimmediate),
-    BEQ(RS1index, RS2index, Bimmediate),
-    BNE(RS1index, RS2index, Bimmediate),
-    BLT(RS1index, RS2index, Bimmediate),
-    BGE(RS1index, RS2index, Bimmediate),
-    BLTU(RS1index, RS2index, Bimmediate),
-    BGEU(RS1index, RS2index, Bimmediate),
-    LB(RDindex, RS1index, Iimmediate),
-    LH(RDindex, RS1index, Iimmediate),
-    LW(RDindex, RS1index, Iimmediate),
-    LBU(RDindex, RS1index, Iimmediate),
-    LHU(RDindex, RS1index, Iimmediate),
-    SB(RS1index, RS2index, Simmediate),
-    SH(RS1index, RS2index, Simmediate),
-    SW(RS1index, RS2index, Simmediate),
-    ADDI(RDindex, RS1index, Iimmediate),
-    SLTI(RDindex, RS1index, Iimmediate),
-    SLTIU(RDindex, RS1index, Iimmediate),
-    XORI(RDindex, RS1index, Iimmediate),
-    ORI(RDindex, RS1index, Iimmediate),
-    ANDI(RDindex, RS1index, Iimmediate),
-    SLLI(RDindex, RS1index, Iimmediate),
-    SRLI(RDindex, RS1index, Iimmediate),
-    SRAI(RDindex, RS1index, Iimmediate),
-    ADD(RDindex, RS1index, RS2index),
-    SUB(RDindex, RS1index, RS2index),
-    SLL(RDindex, RS1index, RS2index),
-    SLT(RDindex, RS1index, RS2index),
-    SLTU(RDindex, RS1index, RS2index),
-    XOR(RDindex, RS1index, RS2index),
-    SRL(RDindex, RS1index, RS2index),
-    SRA(RDindex, RS1index, RS2index),
-    OR(RDindex, RS1index, RS2index),
-    AND(RDindex, RS1index, RS2index),
-    FENCE(RDindex, RS1index, Iimmediate),
-    ECALL(),
-    EBREAK(),
-    MRET(),
-    /* Zicsr */
-    CSRRW(RDindex, RS1index, Iimmediate),
-    CSRRS(RDindex, RS1index, Iimmediate),
-    CSRRC(RDindex, RS1index, Iimmediate),
-    CSRRWI(RDindex, RS1index, Iimmediate),
-    CSRRSI(RDindex, RS1index, Iimmediate),
-    CSRRCI(RDindex, RS1index, Iimmediate),
-    /* M */
-    MUL(RDindex, RS1index, RS2index),
-    MULH(RDindex, RS1index, RS2index),
-    MULHSU(RDindex, RS1index, RS2index),
-    MULHU(RDindex, RS1index, RS2index),
-    DIV(RDindex, RS1index, RS2index),
-    DIVU(RDindex, RS1index, RS2index),
-    REM(RDindex, RS1index, RS2index),
-    REMU(RDindex, RS1index, RS2index),
-}
-
-impl Instruction {
-    pub fn is_zicsr(&self) -> bool {
-        matches!(
-            self,
-            Self::CSRRCI(..)
-                | Self::CSRRW(..)
-                | Self::CSRRS(..)
-                | Self::CSRRC(..)
-                | Self::CSRRWI(..)
-                | Self::CSRRSI(..)
-        )
-    }
-    pub fn is_m(&self) -> bool {
-        matches!(
-            self,
-            Self::MUL(..)
-                | Self::MULH(..)
-                | Self::MULHSU(..)
-                | Self::MULHU(..)
-                | Self::DIV(..)
-                | Self::DIVU(..)
-                | Self::REM(..)
-                | Self::REMU(..)
-        )
-    }
 }
 
 fn get_opcode(instruction: u32) -> Result<OpCode, &'static str> {
