@@ -27,6 +27,10 @@ mod instructions;
 use instructions::Instruction;
 
 mod decoder;
+mod decoder_q0;
+mod decoder_q1;
+mod decoder_q2;
+mod decoder_q3;
 use decoder::decode;
 
 mod executer;
