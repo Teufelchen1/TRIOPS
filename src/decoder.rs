@@ -14,6 +14,14 @@ pub type Bimmediate = u32;
 pub type Uimmediate = u32;
 pub type Jimmediate = u32;
 
+/* Compressed instructions immediates */
+pub type CNZUimmediate = u32;
+pub type CUimmediate = u32;
+pub type CNZimmediate = u32;
+pub type CJimmediate = u32;
+pub type Cimmediate = u32;
+pub type CLUimmediate = u32;
+
 type Funct3 = u32;
 type Funct7 = u32;
 

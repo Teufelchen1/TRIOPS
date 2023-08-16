@@ -442,6 +442,7 @@ pub fn exec(
                 register_file.write(rdindex, rs1 % rs2);
             }
         }
+        _ => todo!(),
     }
     register_file.pc += 4;
     true
