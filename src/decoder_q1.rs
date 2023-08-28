@@ -13,6 +13,18 @@ pub enum OpCode {
     BNEZ,
 }
 
+fn sign_extend(num: u32, bitnum: u32) -> u32 {
+    let msb = num >> (bitnum - 1);
+    let sign_filled = {
+        if msb == 0 {
+            0x0
+        } else {
+            (!0x0u32).checked_shl(bitnum).unwrap_or(0)
+        }
+    };
+    sign_filled | num
+}
+
 fn bit_from_to(inst: u32, from: u32, to: u32) -> u32 {
     ((inst >> from) & 1) << to
 }
@@ -47,7 +59,7 @@ fn get_bimm(inst: u32) -> u32 {
 }
 
 fn get_rs(inst: u32) -> RS1index {
-    ((inst >> 7) & 0b111) as RS1index
+    (((inst >> 7) & 0b111) + 8) as RS1index
 }
 
 fn get_opcode(instruction: u32) -> Result<OpCode, &'static str> {
@@ -81,7 +93,7 @@ pub fn decode(instruction: u32) -> Result<Instruction, &'static str> {
         }
         OpCode::LI => {
             let rdindex = ((instruction >> 7) & 0b1_1111) as RDindex;
-            let imm = get_imm(instruction);
+            let imm = sign_extend(get_imm(instruction), 6);
             Ok(Instruction::CLI(rdindex, imm))
         }
         OpCode::LUI => {

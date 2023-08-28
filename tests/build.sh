@@ -9,12 +9,12 @@ banner() {
 }
 
 banner "Build tests"
-make -C src/isa XLEN=${XLEN} rv32ui rv32um
+make -C src/isa XLEN=${XLEN} rv32ui rv32um rv32uc
 
 banner "Run tests"
 
 exit=0
-for file in src/isa/rv32ui-p-* src/isa/rv32um-p-*; do
+for file in src/isa/rv32ui-p-* src/isa/rv32um-p-* src/isa/rv32uc-p-*; do
 	[ -f "${file}" -a -x "${file}" ] || continue
 
 	name=${file##*/}

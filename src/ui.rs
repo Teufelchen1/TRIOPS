@@ -87,20 +87,25 @@ impl ViewState {
         self.instruction_list
             .truncate(self.instruction_list.len() / 2);
 
+        let mut pc = rf.pc;
         for n in 0..11 {
             let inst = decode(mem.read_word((rf.pc + n * 4) as usize));
             if inst.is_ok() {
-                self.instruction_list.push(format!(
-                    "0x{:08X}: {:}",
-                    rf.pc + n * 4,
-                    inst.unwrap().print()
-                ));
+                let cur_inst = inst.unwrap();
+                self.instruction_list
+                    .push(format!("0x{:08X}: {:}", pc, cur_inst.print()));
+                if cur_inst.is_compressed() {
+                    pc += 2;
+                } else {
+                    pc += 4;
+                }
             } else {
                 self.instruction_list.push(format!(
                     "0x{:08X}: {:08X}",
-                    rf.pc + n * 4,
+                    pc,
                     mem.read_word((rf.pc + n * 4) as usize)
                 ));
+                pc += 4;
             }
         }
         while self.instruction_list.len() > 20 {

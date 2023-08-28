@@ -1,5 +1,5 @@
 use crate::decoder::{RS1value, RS2value};
-use crate::instructions::Instruction;
+use crate::instructions::{decompress, Instruction};
 use crate::system::{Memory, RegisterFile};
 
 fn sign_extend(num: u32, bitnum: u32) -> u32 {
@@ -41,21 +41,33 @@ pub fn exec(
         "M instruction found but M is not enabled."
     );
 
-    match *instruction {
+    let compressed_instruction;
+    let actual_instruction = {
+        if instruction.is_compressed() {
+            register_file.pc += 2;
+            compressed_instruction = decompress(instruction);
+            &compressed_instruction
+        } else {
+            register_file.pc += 4;
+            instruction
+        }
+    };
+
+    match *actual_instruction {
         Instruction::LUI(rdindex, uimmediate) => {
             register_file.write(rdindex, uimmediate);
         }
         Instruction::AUIPC(rdindex, uimmediate) => {
-            register_file.write(rdindex, register_file.pc.wrapping_add(uimmediate));
+            register_file.write(rdindex, (register_file.pc - 4).wrapping_add(uimmediate));
         }
         Instruction::JAL(rdindex, jimmediate) => {
             let sign_imm = sign_extend(jimmediate, 20) as i32;
-            register_file.write(rdindex, register_file.pc + 4);
+            register_file.write(rdindex, register_file.pc);
             assert!(
-                (add_signed!(register_file.pc, sign_imm) % 4) == 0,
-                "JAL target addr not 4 byte aligned."
+                (add_signed!(register_file.pc, sign_imm) % 2) == 0,
+                "JAL target addr not 2 byte aligned."
             );
-            register_file.pc = add_signed!(register_file.pc, sign_imm);
+            register_file.pc = add_signed!(register_file.pc - 4, sign_imm);
             return true;
         }
         Instruction::JALR(rdindex, rs1index, iimmediate) => {
@@ -63,7 +75,7 @@ pub fn exec(
             let sign_imm = sign_extend(iimmediate, 12) as i32;
             let target = add_signed!(rs1, sign_imm) & !0b1;
             assert!(target % 4 == 0, "JALR target addr not 4 byte aligned.");
-            register_file.write(rdindex, register_file.pc + 4);
+            register_file.write(rdindex, register_file.pc);
             register_file.pc = target;
             return true;
         }
@@ -73,10 +85,10 @@ pub fn exec(
             let sign_imm = sign_extend(bimmediate, 12) as i32;
             if rs1 == rs2 {
                 assert!(
-                    (add_signed!(register_file.pc, sign_imm) % 4) == 0,
+                    (add_signed!(register_file.pc - 4, sign_imm) % 4) == 0,
                     "Branch target addr not 4 byte aligned."
                 );
-                register_file.pc = add_signed!(register_file.pc, sign_imm);
+                register_file.pc = add_signed!(register_file.pc - 4, sign_imm);
                 return true;
             }
         }
@@ -86,10 +98,10 @@ pub fn exec(
             let sign_imm = sign_extend(bimmediate, 12) as i32;
             if rs1 != rs2 {
                 assert!(
-                    (add_signed!(register_file.pc, sign_imm) % 4) == 0,
+                    (add_signed!(register_file.pc - 4, sign_imm) % 4) == 0,
                     "Branch target addr not 4 byte aligned."
                 );
-                register_file.pc = add_signed!(register_file.pc, sign_imm);
+                register_file.pc = add_signed!(register_file.pc - 4, sign_imm);
                 return true;
             }
         }
@@ -99,10 +111,10 @@ pub fn exec(
             let sign_imm = sign_extend(bimmediate, 12) as i32;
             if (rs1 as i32) < (rs2 as i32) {
                 assert!(
-                    (add_signed!(register_file.pc, sign_imm) % 4) == 0,
+                    (add_signed!(register_file.pc - 4, sign_imm) % 4) == 0,
                     "Branch target addr not 4 byte aligned."
                 );
-                register_file.pc = add_signed!(register_file.pc, sign_imm);
+                register_file.pc = add_signed!(register_file.pc - 4, sign_imm);
                 return true;
             }
         }
@@ -112,10 +124,10 @@ pub fn exec(
             let sign_imm = sign_extend(bimmediate, 12) as i32;
             if (rs1 as i32) >= (rs2 as i32) {
                 assert!(
-                    (add_signed!(register_file.pc, sign_imm) % 4) == 0,
+                    (add_signed!(register_file.pc - 4, sign_imm) % 4) == 0,
                     "Branch target addr not 4 byte aligned."
                 );
-                register_file.pc = add_signed!(register_file.pc, sign_imm);
+                register_file.pc = add_signed!(register_file.pc - 4, sign_imm);
                 return true;
             }
         }
@@ -125,10 +137,10 @@ pub fn exec(
             let sign_imm = sign_extend(bimmediate, 12) as i32;
             if rs1 < rs2 {
                 assert!(
-                    (add_signed!(register_file.pc, sign_imm) % 4) == 0,
+                    (add_signed!(register_file.pc - 4, sign_imm) % 4) == 0,
                     "Branch target addr not 4 byte aligned."
                 );
-                register_file.pc = add_signed!(register_file.pc, sign_imm);
+                register_file.pc = add_signed!(register_file.pc - 4, sign_imm);
                 return true;
             }
         }
@@ -138,10 +150,10 @@ pub fn exec(
             let sign_imm = sign_extend(bimmediate, 12) as i32;
             if rs1 >= rs2 {
                 assert!(
-                    (add_signed!(register_file.pc, sign_imm) % 4) == 0,
+                    (add_signed!(register_file.pc - 4, sign_imm) % 4) == 0,
                     "Branch target addr not 4 byte aligned."
                 );
-                register_file.pc = add_signed!(register_file.pc, sign_imm);
+                register_file.pc = add_signed!(register_file.pc - 4, sign_imm);
                 return true;
             }
         }
@@ -444,6 +456,5 @@ pub fn exec(
         }
         _ => todo!(),
     }
-    register_file.pc += 4;
     true
 }

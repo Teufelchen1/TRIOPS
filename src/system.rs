@@ -38,19 +38,19 @@ pub fn register_name(register: Rindex) -> &'static str {
     }
 }
 
-pub fn compressed_register_name(register: Rindex) -> &'static str {
-    match register {
-        0b000 => "s0",
-        0b001 => "s1",
-        0b010 => "a0",
-        0b011 => "a1",
-        0b100 => "a2",
-        0b101 => "a3",
-        0b110 => "a4",
-        0b111 => "a5",
-        _ => panic!("Unkown register"),
-    }
-}
+// pub fn compressed_register_name(register: Rindex) -> &'static str {
+//     match register {
+//         0b000 => "s0",
+//         0b001 => "s1",
+//         0b010 => "a0",
+//         0b011 => "a1",
+//         0b100 => "a2",
+//         0b101 => "a3",
+//         0b110 => "a4",
+//         0b111 => "a5",
+//         _ => panic!("Unkown register"),
+//     }
+// }
 
 #[derive(Default)]
 pub struct CSR {

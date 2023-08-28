@@ -2,7 +2,7 @@ use crate::decoder::{
     Bimmediate, CJimmediate, CLUimmediate, CNZUimmediate, CNZimmediate, CUimmediate, Cimmediate,
     Iimmediate, Jimmediate, RDindex, RS1index, RS2index, Simmediate, Uimmediate,
 };
-use crate::system::{compressed_register_name, register_name};
+use crate::system::register_name;
 
 #[derive(Debug)]
 pub enum Instruction {
@@ -106,6 +106,67 @@ pub enum Instruction {
     CFSDSP(RS2index, CLUimmediate),
     CSWSP(RS2index, CLUimmediate),
     CFSWSP(RS2index, CLUimmediate),
+}
+
+pub fn decompress(inst: &Instruction) -> Instruction {
+    match *inst {
+        Instruction::CADDI4SPN(rdindex, cnzuimmediate) => {
+            Instruction::ADDI(rdindex, 2, cnzuimmediate)
+        }
+        Instruction::CFLD(rdindex, rs1index, cuimmediate) => todo!(),
+        Instruction::CLQ(rdindex, rs1index, cuimmediate) => todo!(),
+        Instruction::CLW(rdindex, rs1index, cuimmediate) => {
+            Instruction::LW(rdindex, rs1index, cuimmediate)
+        }
+        Instruction::CFLW(rdindex, rs1index, cuimmediate) => todo!(),
+        Instruction::CLD(rdindex, rs1index, cuimmediate) => todo!(),
+        Instruction::CFSD(rdindex, rs1index, cuimmediate) => todo!(),
+        Instruction::CSQ(rdindex, rs1index, cuimmediate) => todo!(),
+        Instruction::CSW(rdindex, rs1index, cuimmediate) => {
+            Instruction::SW(rdindex, rs1index, cuimmediate)
+        }
+        Instruction::CFSW(rdindex, rs1index, cuimmediate) => todo!(),
+        Instruction::CSD(rdindex, rs1index, cuimmediate) => todo!(),
+        Instruction::CNOP(rdindex, cnzimmediate) => todo!(),
+        Instruction::CADDI(rdindex, cnzimmediate) => {
+            Instruction::ADDI(rdindex, rdindex, cnzimmediate)
+        }
+        Instruction::CJAL(cjimmediate) => Instruction::JAL(1, cjimmediate),
+        Instruction::CLI(rdindex, cimmediate) => Instruction::ADDI(rdindex, 0, cimmediate),
+        Instruction::CADDI16SP(rdindex, cnzimmediate) => Instruction::ADDI(2, 2, cnzimmediate),
+        Instruction::CLUI(rdindex, cnzimmediate) => Instruction::LUI(rdindex, cnzimmediate),
+        Instruction::CSRLI(rdindex, cnzuimmediate) => {
+            Instruction::SRLI(rdindex, rdindex, cnzuimmediate)
+        }
+        Instruction::CSRAI(rdindex, cnzuimmediate) => {
+            Instruction::SRAI(rdindex, rdindex, cnzuimmediate)
+        }
+        Instruction::CANDI(rdindex, cnzuimmediate) => {
+            Instruction::ANDI(rdindex, rdindex, cnzuimmediate)
+        }
+        Instruction::CSUB(rdindex, rs2index) => Instruction::SUB(rdindex, rdindex, rs2index),
+        Instruction::CXOR(rdindex, rs2index) => Instruction::XOR(rdindex, rdindex, rs2index),
+        Instruction::COR(rdindex, rs2index) => Instruction::OR(rdindex, rdindex, rs2index),
+        Instruction::CAND(rdindex, rs2index) => Instruction::AND(rdindex, rdindex, rs2index),
+        Instruction::CJ(cjimmediate) => Instruction::JAL(0, cjimmediate),
+        Instruction::CBEQZ(rs1index, cimmediate) => Instruction::BEQ(rs1index, 0, cimmediate),
+        Instruction::CBNEZ(rs1index, cimmediate) => Instruction::BNE(rs1index, 0, cimmediate),
+        Instruction::CSLLI(rdindex, cnzuimmediate) => {
+            Instruction::SLLI(rdindex, rdindex, cnzuimmediate)
+        }
+        Instruction::CFLDSP(rdindex, cuimmediate) => todo!(),
+        Instruction::CLWSP(rdindex, cuimmediate) => Instruction::LW(rdindex, 3, cuimmediate),
+        Instruction::CFLWSP(rdindex, cuimmediate) => todo!(),
+        Instruction::CJR(rs1index) => Instruction::JALR(0, rs1index, 0),
+        Instruction::CMV(rdindex, rs2index) => Instruction::ADD(rdindex, 0, rs2index),
+        Instruction::CEBREAK() => Instruction::EBREAK(),
+        Instruction::CJALR(rs1index) => Instruction::JALR(1, rs1index, 0),
+        Instruction::CADD(rdindex, rs2index) => Instruction::ADD(rdindex, rdindex, rs2index),
+        Instruction::CFSDSP(rs2index, cluimmediate) => todo!(),
+        Instruction::CSWSP(rs2index, cluimmediate) => Instruction::SW(3, rs2index, cluimmediate),
+        Instruction::CFSWSP(rs2index, cluimmediate) => todo!(),
+        _ => panic!(),
+    }
 }
 
 impl Instruction {
@@ -489,193 +550,157 @@ impl Instruction {
                 register_name(rs1index),
                 register_name(rs2index)
             ),
-            Instruction::CADDI4SPN(rdindex, cnzuimmediate) => format!(
-                "C.ADDI4SPN {:}, {:}",
-                compressed_register_name(rdindex),
-                cnzuimmediate
-            ),
+            Instruction::CADDI4SPN(rdindex, cnzuimmediate) => {
+                format!("C.ADDI4SPN {:}, {:}", register_name(rdindex), cnzuimmediate)
+            }
             Instruction::CFLD(rdindex, rs1index, cuimmediate) => format!(
                 "C.FLD {:}, {:}, {:}",
-                compressed_register_name(rdindex),
-                compressed_register_name(rs1index),
+                register_name(rdindex),
+                register_name(rs1index),
                 cuimmediate
             ),
             Instruction::CLQ(rdindex, rs1index, cuimmediate) => format!(
                 "C.LQ {:}, {:}, {:}",
-                compressed_register_name(rdindex),
-                compressed_register_name(rs1index),
+                register_name(rdindex),
+                register_name(rs1index),
                 cuimmediate
             ),
             Instruction::CLW(rdindex, rs1index, cuimmediate) => format!(
                 "C.LW {:}, {:}, {:}",
-                compressed_register_name(rdindex),
-                compressed_register_name(rs1index),
+                register_name(rdindex),
+                register_name(rs1index),
                 cuimmediate
             ),
             Instruction::CFLW(rdindex, rs1index, cuimmediate) => format!(
                 "C.FLW {:}, {:}, {:}",
-                compressed_register_name(rdindex),
-                compressed_register_name(rs1index),
+                register_name(rdindex),
+                register_name(rs1index),
                 cuimmediate
             ),
             Instruction::CLD(rdindex, rs1index, cuimmediate) => format!(
                 "C.LD {:}, {:}, {:}",
-                compressed_register_name(rdindex),
-                compressed_register_name(rs1index),
+                register_name(rdindex),
+                register_name(rs1index),
                 cuimmediate
             ),
             Instruction::CFSD(rdindex, rs1index, cuimmediate) => format!(
                 "C.FSD {:}, {:}, {:}",
-                compressed_register_name(rdindex),
-                compressed_register_name(rs1index),
+                register_name(rdindex),
+                register_name(rs1index),
                 cuimmediate
             ),
             Instruction::CSQ(rdindex, rs1index, cuimmediate) => format!(
                 "C.SQ {:}, {:}, {:}",
-                compressed_register_name(rdindex),
-                compressed_register_name(rs1index),
+                register_name(rdindex),
+                register_name(rs1index),
                 cuimmediate
             ),
             Instruction::CSW(rdindex, rs1index, cuimmediate) => format!(
                 "C.SW {:}, {:}, {:}",
-                compressed_register_name(rdindex),
-                compressed_register_name(rs1index),
+                register_name(rdindex),
+                register_name(rs1index),
                 cuimmediate
             ),
             Instruction::CFSW(rdindex, rs1index, cuimmediate) => format!(
                 "C.FSW {:}, {:}, {:}",
-                compressed_register_name(rdindex),
-                compressed_register_name(rs1index),
+                register_name(rdindex),
+                register_name(rs1index),
                 cuimmediate
             ),
             Instruction::CSD(rdindex, rs1index, cuimmediate) => format!(
                 "C.SD {:}, {:}, {:}",
-                compressed_register_name(rdindex),
-                compressed_register_name(rs1index),
+                register_name(rdindex),
+                register_name(rs1index),
                 cuimmediate
             ),
-            Instruction::CNOP(rdindex, cnzimmediate) => format!(
-                "C.NOP {:}, {:}",
-                compressed_register_name(rdindex),
-                cnzimmediate
-            ),
-            Instruction::CADDI(rdindex, cnzimmediate) => format!(
-                "C.ADDI {:}, {:}",
-                compressed_register_name(rdindex),
-                cnzimmediate
-            ),
+            Instruction::CNOP(rdindex, cnzimmediate) => {
+                format!("C.NOP {:}, {:}", register_name(rdindex), cnzimmediate)
+            }
+            Instruction::CADDI(rdindex, cnzimmediate) => {
+                format!("C.ADDI {:}, {:}", register_name(rdindex), cnzimmediate)
+            }
             Instruction::CJAL(cjimmediate) => format!("C.JAL {:}", cjimmediate),
-            Instruction::CLI(rdindex, cimmediate) => format!(
-                "C.LI {:}, {:}",
-                compressed_register_name(rdindex),
-                cimmediate
-            ),
-            Instruction::CADDI16SP(rdindex, cnzimmediate) => format!(
-                "C.ADDI16SP {:}, {:}",
-                compressed_register_name(rdindex),
-                cnzimmediate
-            ),
-            Instruction::CLUI(rdindex, cnzimmediate) => format!(
-                "C.LUI {:}, {:}",
-                compressed_register_name(rdindex),
-                cnzimmediate
-            ),
-            Instruction::CSRLI(rdindex, cnzuimmediate) => format!(
-                "C.SRLI {:}, {:}",
-                compressed_register_name(rdindex),
-                cnzuimmediate
-            ),
-            Instruction::CSRAI(rdindex, cnzuimmediate) => format!(
-                "C.SRAI {:}, {:}",
-                compressed_register_name(rdindex),
-                cnzuimmediate
-            ),
-            Instruction::CANDI(rdindex, cnzuimmediate) => format!(
-                "C.ANDI {:}, {:}",
-                compressed_register_name(rdindex),
-                cnzuimmediate
-            ),
+            Instruction::CLI(rdindex, cimmediate) => {
+                format!("C.LI {:}, {:}", register_name(rdindex), cimmediate)
+            }
+            Instruction::CADDI16SP(rdindex, cnzimmediate) => {
+                format!("C.ADDI16SP {:}, {:}", register_name(rdindex), cnzimmediate)
+            }
+            Instruction::CLUI(rdindex, cnzimmediate) => {
+                format!("C.LUI {:}, {:}", register_name(rdindex), cnzimmediate)
+            }
+            Instruction::CSRLI(rdindex, cnzuimmediate) => {
+                format!("C.SRLI {:}, {:}", register_name(rdindex), cnzuimmediate)
+            }
+            Instruction::CSRAI(rdindex, cnzuimmediate) => {
+                format!("C.SRAI {:}, {:}", register_name(rdindex), cnzuimmediate)
+            }
+            Instruction::CANDI(rdindex, cnzuimmediate) => {
+                format!("C.ANDI {:}, {:}", register_name(rdindex), cnzuimmediate)
+            }
             Instruction::CSUB(rdindex, rs2index) => format!(
                 "C.SUB {:}, {:}",
-                compressed_register_name(rdindex),
-                compressed_register_name(rs2index)
+                register_name(rdindex),
+                register_name(rs2index)
             ),
             Instruction::CXOR(rdindex, rs2index) => format!(
                 "C.XOR {:}, {:}",
-                compressed_register_name(rdindex),
-                compressed_register_name(rs2index)
+                register_name(rdindex),
+                register_name(rs2index)
             ),
             Instruction::COR(rdindex, rs2index) => format!(
                 "C.OR {:}, {:}",
-                compressed_register_name(rdindex),
-                compressed_register_name(rs2index)
+                register_name(rdindex),
+                register_name(rs2index)
             ),
             Instruction::CAND(rdindex, rs2index) => format!(
                 "C.AND {:}, {:}",
-                compressed_register_name(rdindex),
-                compressed_register_name(rs2index)
+                register_name(rdindex),
+                register_name(rs2index)
             ),
             Instruction::CJ(cjimmediate) => format!("C.J {:}", cjimmediate),
-            Instruction::CBEQZ(rs1index, cimmediate) => format!(
-                "C.BEQZ {:}, {:}",
-                compressed_register_name(rs1index),
-                cimmediate
-            ),
-            Instruction::CBNEZ(rs1index, cimmediate) => format!(
-                "C.BNEZ {:}, {:}",
-                compressed_register_name(rs1index),
-                cimmediate
-            ),
-            Instruction::CSLLI(rdindex, cnzuimmediate) => format!(
-                "C.SLLI {:}, {:}",
-                compressed_register_name(rdindex),
-                cnzuimmediate
-            ),
-            Instruction::CFLDSP(rdindex, cuimmediate) => format!(
-                "C.FLDSP {:}, {:}",
-                compressed_register_name(rdindex),
-                cuimmediate
-            ),
-            Instruction::CLWSP(rdindex, cuimmediate) => format!(
-                "C.LWSP {:}, {:}",
-                compressed_register_name(rdindex),
-                cuimmediate
-            ),
-            Instruction::CFLWSP(rdindex, cuimmediate) => format!(
-                "C.FLWSP {:}, {:}",
-                compressed_register_name(rdindex),
-                cuimmediate
-            ),
-            Instruction::CJR(rs1index) => format!("C.JR {:}", compressed_register_name(rs1index)),
+            Instruction::CBEQZ(rs1index, cimmediate) => {
+                format!("C.BEQZ {:}, {:}", register_name(rs1index), cimmediate)
+            }
+            Instruction::CBNEZ(rs1index, cimmediate) => {
+                format!("C.BNEZ {:}, {:}", register_name(rs1index), cimmediate)
+            }
+            Instruction::CSLLI(rdindex, cnzuimmediate) => {
+                format!("C.SLLI {:}, {:}", register_name(rdindex), cnzuimmediate)
+            }
+            Instruction::CFLDSP(rdindex, cuimmediate) => {
+                format!("C.FLDSP {:}, {:}", register_name(rdindex), cuimmediate)
+            }
+            Instruction::CLWSP(rdindex, cuimmediate) => {
+                format!("C.LWSP {:}, {:}", register_name(rdindex), cuimmediate)
+            }
+            Instruction::CFLWSP(rdindex, cuimmediate) => {
+                format!("C.FLWSP {:}, {:}", register_name(rdindex), cuimmediate)
+            }
+            Instruction::CJR(rs1index) => format!("C.JR {:}", register_name(rs1index)),
             Instruction::CMV(rdindex, rs2index) => format!(
                 "C.MV {:}, {:}",
-                compressed_register_name(rdindex),
-                compressed_register_name(rs2index)
+                register_name(rdindex),
+                register_name(rs2index)
             ),
             Instruction::CEBREAK() => format!("C.EBREAK"),
             Instruction::CJALR(rs1index) => {
-                format!("C.JALR {:}", compressed_register_name(rs1index))
+                format!("C.JALR {:}", register_name(rs1index))
             }
             Instruction::CADD(rdindex, rs2index) => format!(
                 "C.ADD {:}, {:}",
-                compressed_register_name(rdindex),
-                compressed_register_name(rs2index)
+                register_name(rdindex),
+                register_name(rs2index)
             ),
-            Instruction::CFSDSP(rs2index, cluimmediate) => format!(
-                "C.FSDSP {:}, {:}",
-                compressed_register_name(rs2index),
-                cluimmediate
-            ),
-            Instruction::CSWSP(rs2index, cluimmediate) => format!(
-                "C.FSDSP {:}, {:}",
-                compressed_register_name(rs2index),
-                cluimmediate
-            ),
-            Instruction::CFSWSP(rs2index, cluimmediate) => format!(
-                "C.FSDSP {:}, {:}",
-                compressed_register_name(rs2index),
-                cluimmediate
-            ),
+            Instruction::CFSDSP(rs2index, cluimmediate) => {
+                format!("C.FSDSP {:}, {:}", register_name(rs2index), cluimmediate)
+            }
+            Instruction::CSWSP(rs2index, cluimmediate) => {
+                format!("C.FSDSP {:}, {:}", register_name(rs2index), cluimmediate)
+            }
+            Instruction::CFSWSP(rs2index, cluimmediate) => {
+                format!("C.FSDSP {:}, {:}", register_name(rs2index), cluimmediate)
+            }
             _ => format!("{:?}", self),
         }
     }

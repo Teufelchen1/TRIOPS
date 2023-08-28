@@ -14,11 +14,11 @@ pub enum OpCode {
 }
 
 fn get_rd(inst: u32) -> RDindex {
-    ((inst >> 2) & 0b111) as RDindex
+    (((inst >> 2) & 0b111) + 8) as RDindex
 }
 
 fn get_rs(inst: u32) -> RS1index {
-    ((inst >> 7) & 0b111) as RS1index
+    (((inst >> 7) & 0b111) + 8) as RS1index
 }
 
 fn get_imm(inst: u32) -> CUimmediate {
