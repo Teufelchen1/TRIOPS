@@ -90,8 +90,7 @@ impl ViewState {
         let mut pc = rf.pc;
         for n in 0..11 {
             let inst = decode(mem.read_word((rf.pc + n * 4) as usize));
-            if inst.is_ok() {
-                let cur_inst = inst.unwrap();
+            if let Ok(cur_inst) = inst {
                 self.instruction_list
                     .push(format!("0x{:08X}: {:}", pc, cur_inst.print()));
                 if cur_inst.is_compressed() {

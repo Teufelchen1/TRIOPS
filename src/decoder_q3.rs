@@ -152,6 +152,7 @@ fn get_opcode(instruction: u32) -> Result<OpCode, &'static str> {
     }
 }
 
+#[allow(clippy::too_many_lines)]
 pub fn decode(instruction: u32) -> Result<Instruction, &'static str> {
     let op = get_opcode(instruction)?;
 

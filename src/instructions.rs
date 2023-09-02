@@ -619,7 +619,7 @@ impl Instruction {
             Instruction::CADDI(rdindex, cnzimmediate) => {
                 format!("C.ADDI {:}, {:}", register_name(rdindex), cnzimmediate)
             }
-            Instruction::CJAL(cjimmediate) => format!("C.JAL {:}", cjimmediate),
+            Instruction::CJAL(cjimmediate) => format!("C.JAL {cjimmediate:}"),
             Instruction::CLI(rdindex, cimmediate) => {
                 format!("C.LI {:}, {:}", register_name(rdindex), cimmediate)
             }
@@ -658,7 +658,7 @@ impl Instruction {
                 register_name(rdindex),
                 register_name(rs2index)
             ),
-            Instruction::CJ(cjimmediate) => format!("C.J {:}", cjimmediate),
+            Instruction::CJ(cjimmediate) => format!("C.J {cjimmediate:}"),
             Instruction::CBEQZ(rs1index, cimmediate) => {
                 format!("C.BEQZ {:}, {:}", register_name(rs1index), cimmediate)
             }
@@ -683,7 +683,7 @@ impl Instruction {
                 register_name(rdindex),
                 register_name(rs2index)
             ),
-            Instruction::CEBREAK() => format!("C.EBREAK"),
+            Instruction::CEBREAK() => "C.EBREAK".to_string(),
             Instruction::CJALR(rs1index) => {
                 format!("C.JALR {:}", register_name(rs1index))
             }
@@ -696,12 +696,12 @@ impl Instruction {
                 format!("C.FSDSP {:}, {:}", register_name(rs2index), cluimmediate)
             }
             Instruction::CSWSP(rs2index, cluimmediate) => {
-                format!("C.FSDSP {:}, {:}", register_name(rs2index), cluimmediate)
+                format!("C.SWSP {:}, {:}", register_name(rs2index), cluimmediate)
             }
             Instruction::CFSWSP(rs2index, cluimmediate) => {
-                format!("C.FSDSP {:}, {:}", register_name(rs2index), cluimmediate)
+                format!("C.FSWSP {:}, {:}", register_name(rs2index), cluimmediate)
             }
-            _ => format!("{:?}", self),
+            _ => format!("{self:?}"),
         }
     }
 }

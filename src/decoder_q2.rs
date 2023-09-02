@@ -86,18 +86,18 @@ pub fn decode(instruction: u32) -> Result<Instruction, &'static str> {
         }
         OpCode::MISC => {
             let rdindex = get_rd(instruction);
-            let rsindex = get_rs(instruction);
+            let rs1index = get_rs(instruction);
             let opt = ((instruction >> 12) & 1) == 1;
-            if !opt && rsindex == 0 {
+            if !opt && rs1index == 0 {
                 Ok(Instruction::CJR(rdindex))
-            } else if !opt && rsindex > 0 {
-                Ok(Instruction::CMV(rdindex, rsindex))
-            } else if opt && rsindex == 0 && rdindex == 0 {
+            } else if !opt && rs1index > 0 {
+                Ok(Instruction::CMV(rdindex, rs1index))
+            } else if opt && rs1index == 0 && rdindex == 0 {
                 Ok(Instruction::CEBREAK())
-            } else if opt && rsindex == 0 && rdindex != 0 {
+            } else if opt && rs1index == 0 && rdindex != 0 {
                 Ok(Instruction::CJALR(rdindex))
             } else {
-                Ok(Instruction::CADD(rdindex, rsindex))
+                Ok(Instruction::CADD(rdindex, rs1index))
             }
         }
         OpCode::FSDSP => {

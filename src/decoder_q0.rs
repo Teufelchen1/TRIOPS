@@ -44,30 +44,28 @@ pub fn decode(instruction: u32) -> Result<Instruction, &'static str> {
         return Err("Instruction is zero");
     }
     let op = get_opcode(instruction)?;
-    if op == OpCode::ADDI4SPN {
-        let rdindex = get_rd(instruction);
-        let imm = ((((instruction >> 5) & 1) << 3)
-            + (((instruction >> 6) & 1) << 2)
-            + (((instruction >> 7) & 1) << 6)
-            + (((instruction >> 8) & 1) << 7)
-            + (((instruction >> 9) & 1) << 8)
-            + (((instruction >> 10) & 1) << 9)
-            + (((instruction >> 11) & 1) << 4)
-            + (((instruction >> 12) & 1) << 5));
-        return Ok(Instruction::CADDI4SPN(rdindex, imm));
-    }
-
     let rdindex = get_rd(instruction);
-    let rsindex = get_rs(instruction);
+    let rs1index = get_rs(instruction);
     let imm = get_imm(instruction);
     match op {
-        OpCode::FLD => Ok(Instruction::CFLD(rdindex, rsindex, imm)),
-        OpCode::LW => Ok(Instruction::CLW(rdindex, rsindex, imm)),
-        OpCode::FLW => Ok(Instruction::CFLW(rdindex, rsindex, imm)),
+        OpCode::FLD => Ok(Instruction::CFLD(rdindex, rs1index, imm)),
+        OpCode::LW => Ok(Instruction::CLW(rdindex, rs1index, imm)),
+        OpCode::FLW => Ok(Instruction::CFLW(rdindex, rs1index, imm)),
         OpCode::RESERVED => Err("Reserved instruction"),
-        OpCode::FSD => Ok(Instruction::CFSD(rdindex, rsindex, imm)),
-        OpCode::SW => Ok(Instruction::CSW(rsindex, rdindex, imm)),
-        OpCode::FSW => Ok(Instruction::CFSW(rdindex, rsindex, imm)),
-        _ => panic!("Unkown q1 instruction"),
+        OpCode::FSD => Ok(Instruction::CFSD(rdindex, rs1index, imm)),
+        OpCode::SW => Ok(Instruction::CSW(rs1index, rdindex, imm)),
+        OpCode::FSW => Ok(Instruction::CFSW(rdindex, rs1index, imm)),
+        OpCode::ADDI4SPN => {
+            let rdindex = get_rd(instruction);
+            let imm = ((((instruction >> 5) & 1) << 3)
+                + (((instruction >> 6) & 1) << 2)
+                + (((instruction >> 7) & 1) << 6)
+                + (((instruction >> 8) & 1) << 7)
+                + (((instruction >> 9) & 1) << 8)
+                + (((instruction >> 10) & 1) << 9)
+                + (((instruction >> 11) & 1) << 4)
+                + (((instruction >> 12) & 1) << 5));
+            Ok(Instruction::CADDI4SPN(rdindex, imm))
+        }
     }
 }

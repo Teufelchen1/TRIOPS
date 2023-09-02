@@ -124,18 +124,18 @@ pub fn decode(instruction: u32) -> Result<Instruction, &'static str> {
             let opt1110 = (instruction >> 10) & 0b11;
             let opt56 = (instruction >> 5) & 0b11;
             let imm = get_imm(instruction);
-            let rsindex = get_rs(instruction);
+            let rs1index = get_rs(instruction);
             match opt1110 {
-                0b00 => Ok(Instruction::CSRLI(rsindex, imm)),
-                0b01 => Ok(Instruction::CSRAI(rsindex, imm)),
-                0b10 => Ok(Instruction::CANDI(rsindex, sign_extend(imm, 6))),
+                0b00 => Ok(Instruction::CSRLI(rs1index, imm)),
+                0b01 => Ok(Instruction::CSRAI(rs1index, imm)),
+                0b10 => Ok(Instruction::CANDI(rs1index, sign_extend(imm, 6))),
                 0b11 => {
                     let rs2index = (((instruction >> 2) & 0b111) + 8) as RS1index;
                     match opt56 {
-                        0b00 => Ok(Instruction::CSUB(rsindex, rs2index)),
-                        0b01 => Ok(Instruction::CXOR(rsindex, rs2index)),
-                        0b10 => Ok(Instruction::COR(rsindex, rs2index)),
-                        0b11 => Ok(Instruction::CAND(rsindex, rs2index)),
+                        0b00 => Ok(Instruction::CSUB(rs1index, rs2index)),
+                        0b01 => Ok(Instruction::CXOR(rs1index, rs2index)),
+                        0b10 => Ok(Instruction::COR(rs1index, rs2index)),
+                        0b11 => Ok(Instruction::CAND(rs1index, rs2index)),
                         _ => todo!(),
                     }
                 }
