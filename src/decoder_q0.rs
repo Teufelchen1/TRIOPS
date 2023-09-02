@@ -22,7 +22,7 @@ fn get_rs(inst: u32) -> RS1index {
 }
 
 fn get_imm(inst: u32) -> CUimmediate {
-    (((inst >> 10) & 0b111) << 3) + (((inst >> 5) & 0b11) << 6)
+    (((inst >> 10) & 0b111) << 3) + (((inst >> 5) & 0b1) << 6) + (((inst >> 6) & 0b1) << 2)
 }
 
 fn get_opcode(instruction: u32) -> Result<OpCode, &'static str> {
@@ -66,7 +66,7 @@ pub fn decode(instruction: u32) -> Result<Instruction, &'static str> {
         OpCode::FLW => Ok(Instruction::CFLW(rdindex, rsindex, imm)),
         OpCode::RESERVED => Err("Reserved instruction"),
         OpCode::FSD => Ok(Instruction::CFSD(rdindex, rsindex, imm)),
-        OpCode::SW => Ok(Instruction::CSW(rdindex, rsindex, imm)),
+        OpCode::SW => Ok(Instruction::CSW(rsindex, rdindex, imm)),
         OpCode::FSW => Ok(Instruction::CFSW(rdindex, rsindex, imm)),
         _ => panic!("Unkown q1 instruction"),
     }

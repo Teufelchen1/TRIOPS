@@ -271,7 +271,8 @@ impl Memory {
             return;
         }
         if self.is_io(addr) {
-            print!("{:}", char::from_u32(value).unwrap());
+            println!("LOL {:x} {:}", addr, value);
+            print!("{:}", char::from_u32(value & 0xFF).unwrap());
             return;
         }
         panic!("Memory access outside memory map: 0x{addr:X}");

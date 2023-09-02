@@ -127,6 +127,10 @@ fn main() -> anyhow::Result<()> {
     }
 
     if args.testing {
+        let reg = register_file.read(17);
+        if reg != 93 {
+            println!("Test failed: {:}", register_file.read(10));
+        }
         anyhow::ensure!(register_file.read(17) == 93, "Test failed");
     } else {
         println!("Done!");

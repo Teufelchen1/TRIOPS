@@ -58,6 +58,15 @@ fn get_bimm(inst: u32) -> u32 {
         + bit_from_to(inst, 12, 8)
 }
 
+fn get_addi16spimm(inst: u32) -> u32 {
+    bit_from_to(inst, 2, 5)
+        + bit_from_to(inst, 3, 7)
+        + bit_from_to(inst, 4, 8)
+        + bit_from_to(inst, 5, 6)
+        + bit_from_to(inst, 6, 4)
+        + bit_from_to(inst, 12, 9)
+}
+
 fn get_rs(inst: u32) -> RS1index {
     (((inst >> 7) & 0b111) + 8) as RS1index
 }
@@ -85,7 +94,7 @@ pub fn decode(instruction: u32) -> Result<Instruction, &'static str> {
             }
             let rdindex = ((instruction >> 7) & 0b1_1111) as RDindex;
             let imm = get_imm(instruction);
-            Ok(Instruction::CADDI(rdindex, imm))
+            Ok(Instruction::CADDI(rdindex, sign_extend(imm, 6)))
         }
         OpCode::JAL => {
             let imm = get_jimm(instruction);
@@ -98,12 +107,17 @@ pub fn decode(instruction: u32) -> Result<Instruction, &'static str> {
         }
         OpCode::LUI => {
             let rdindex = ((instruction >> 7) & 0b1_1111) as RDindex;
-            let imm = get_imm(instruction);
             assert!(rdindex != 0);
             if rdindex == 2 {
-                Ok(Instruction::CADDI16SP(2, imm))
+                Ok(Instruction::CADDI16SP(
+                    2,
+                    sign_extend(get_addi16spimm(instruction), 10),
+                ))
             } else {
-                Ok(Instruction::CLUI(rdindex, imm))
+                Ok(Instruction::CLUI(
+                    rdindex,
+                    sign_extend(get_imm(instruction) << 12, 18),
+                ))
             }
         }
         OpCode::ALU => {
@@ -114,9 +128,9 @@ pub fn decode(instruction: u32) -> Result<Instruction, &'static str> {
             match opt1110 {
                 0b00 => Ok(Instruction::CSRLI(rsindex, imm)),
                 0b01 => Ok(Instruction::CSRAI(rsindex, imm)),
-                0b10 => Ok(Instruction::CANDI(rsindex, imm)),
+                0b10 => Ok(Instruction::CANDI(rsindex, sign_extend(imm, 6))),
                 0b11 => {
-                    let rs2index = ((instruction >> 2) & 0b111) as RS1index;
+                    let rs2index = (((instruction >> 2) & 0b111) + 8) as RS1index;
                     match opt56 {
                         0b00 => Ok(Instruction::CSUB(rsindex, rs2index)),
                         0b01 => Ok(Instruction::CXOR(rsindex, rs2index)),
@@ -129,7 +143,7 @@ pub fn decode(instruction: u32) -> Result<Instruction, &'static str> {
             }
         }
         OpCode::J => {
-            let imm = get_jimm(instruction);
+            let imm = sign_extend(get_jimm(instruction), 12);
             Ok(Instruction::CJ(imm))
         }
         OpCode::BEQZ => {

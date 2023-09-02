@@ -155,7 +155,7 @@ pub fn decompress(inst: &Instruction) -> Instruction {
             Instruction::SLLI(rdindex, rdindex, cnzuimmediate)
         }
         Instruction::CFLDSP(rdindex, cuimmediate) => todo!(),
-        Instruction::CLWSP(rdindex, cuimmediate) => Instruction::LW(rdindex, 3, cuimmediate),
+        Instruction::CLWSP(rdindex, cuimmediate) => Instruction::LW(rdindex, 2, cuimmediate),
         Instruction::CFLWSP(rdindex, cuimmediate) => todo!(),
         Instruction::CJR(rs1index) => Instruction::JALR(0, rs1index, 0),
         Instruction::CMV(rdindex, rs2index) => Instruction::ADD(rdindex, 0, rs2index),
@@ -163,7 +163,7 @@ pub fn decompress(inst: &Instruction) -> Instruction {
         Instruction::CJALR(rs1index) => Instruction::JALR(1, rs1index, 0),
         Instruction::CADD(rdindex, rs2index) => Instruction::ADD(rdindex, rdindex, rs2index),
         Instruction::CFSDSP(rs2index, cluimmediate) => todo!(),
-        Instruction::CSWSP(rs2index, cluimmediate) => Instruction::SW(3, rs2index, cluimmediate),
+        Instruction::CSWSP(rs2index, cluimmediate) => Instruction::SW(2, rs2index, cluimmediate),
         Instruction::CFSWSP(rs2index, cluimmediate) => todo!(),
         _ => panic!(),
     }

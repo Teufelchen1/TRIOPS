@@ -39,12 +39,34 @@ fn get_rs(inst: u32) -> RS1index {
     ((inst >> 2) & 0b1_1111) as RS1index
 }
 
+fn get_ci_offset(inst: u32) -> u32 {
+    bit_from_to(inst, 2, 6)
+        + bit_from_to(inst, 3, 7)
+        + bit_from_to(inst, 4, 2)
+        + bit_from_to(inst, 5, 3)
+        + bit_from_to(inst, 6, 4)
+        + bit_from_to(inst, 12, 5)
+}
+
+fn get_css_offset(inst: u32) -> u32 {
+    bit_from_to(inst, 7, 6)
+        + bit_from_to(inst, 8, 7)
+        + bit_from_to(inst, 9, 2)
+        + bit_from_to(inst, 10, 3)
+        + bit_from_to(inst, 11, 4)
+        + bit_from_to(inst, 12, 5)
+}
+
+fn get_shamt(inst: u32) -> u32 {
+    ((inst >> 2) & 0b1_1111) + bit_from_to(inst, 12, 5)
+}
+
 pub fn decode(instruction: u32) -> Result<Instruction, &'static str> {
     let op = get_opcode(instruction)?;
     match op {
         OpCode::SLLI => {
             let rdindex = get_rd(instruction);
-            let imm = 0;
+            let imm = get_shamt(instruction);
             Ok(Instruction::CSLLI(rdindex, imm))
         }
         OpCode::FLDSP => {
@@ -54,7 +76,7 @@ pub fn decode(instruction: u32) -> Result<Instruction, &'static str> {
         }
         OpCode::LWSP => {
             let rdindex = get_rd(instruction);
-            let imm = 0;
+            let imm = get_ci_offset(instruction);
             Ok(Instruction::CLWSP(rdindex, imm))
         }
         OpCode::FLWSP => {
@@ -85,7 +107,7 @@ pub fn decode(instruction: u32) -> Result<Instruction, &'static str> {
         }
         OpCode::SWSP => {
             let rsindex = get_rs(instruction);
-            let imm = 0;
+            let imm = get_css_offset(instruction);
             Ok(Instruction::CSWSP(rsindex, imm))
         }
         OpCode::FSWSP => {
