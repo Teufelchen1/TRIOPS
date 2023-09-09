@@ -24,6 +24,10 @@ macro_rules! add_signed {
     }};
 }
 
+/* Executes one instruction.
+ * Returns true except for ebreak.
+ * ebreak is used to indicate that the execution terminated and that the
+ * emulator should quit. */
 #[allow(clippy::too_many_lines)]
 pub fn exec(
     register_file: &mut RegisterFile,
@@ -56,25 +60,23 @@ pub fn exec(
 
     match *actual_instruction {
         Instruction::LUI(rdindex, uimmediate) => {
-            register_file.write(rdindex, uimmediate);
+            register_file.write(rdindex, uimmediate as u32);
         }
         Instruction::AUIPC(rdindex, uimmediate) => {
-            register_file.write(rdindex, (register_file.pc - 4).wrapping_add(uimmediate));
+            register_file.write(rdindex, (register_file.pc - 4).wrapping_add(uimmediate as u32));
         }
         Instruction::JAL(rdindex, jimmediate) => {
-            let sign_imm = sign_extend(jimmediate, 20) as i32;
             register_file.write(rdindex, register_file.pc);
             assert!(
-                (add_signed!(register_file.pc, sign_imm) % 2) == 0,
+                (add_signed!(register_file.pc, jimmediate) % 2) == 0,
                 "JAL target addr not 2 byte aligned."
             );
-            register_file.pc = add_signed!(instruction_address, sign_imm);
+            register_file.pc = add_signed!(instruction_address, jimmediate);
             return true;
         }
         Instruction::JALR(rdindex, rs1index, iimmediate) => {
             let rs1: RS1value = register_file.read(rs1index);
-            let sign_imm = sign_extend(iimmediate, 12) as i32;
-            let target = add_signed!(rs1, sign_imm) & !0b1;
+            let target = add_signed!(rs1, iimmediate) & !0b1;
             assert!(target % 2 == 0, "JALR target addr not 4 byte aligned.");
             register_file.write(rdindex, register_file.pc);
             register_file.pc = target;
@@ -83,146 +85,130 @@ pub fn exec(
         Instruction::BEQ(rs1index, rs2index, bimmediate) => {
             let rs1: RS1value = register_file.read(rs1index);
             let rs2: RS2value = register_file.read(rs2index);
-            let sign_imm = sign_extend(bimmediate, 12) as i32;
             if rs1 == rs2 {
                 assert!(
-                    (add_signed!(instruction_address, sign_imm) % 2) == 0,
+                    (add_signed!(instruction_address, bimmediate) % 2) == 0,
                     "Branch target addr not 4 byte aligned."
                 );
-                register_file.pc = add_signed!(instruction_address, sign_imm);
+                register_file.pc = add_signed!(instruction_address, bimmediate);
                 return true;
             }
         }
         Instruction::BNE(rs1index, rs2index, bimmediate) => {
             let rs1: RS1value = register_file.read(rs1index);
             let rs2: RS2value = register_file.read(rs2index);
-            let sign_imm = sign_extend(bimmediate, 12) as i32;
             if rs1 != rs2 {
                 assert!(
-                    (add_signed!(instruction_address, sign_imm) % 2) == 0,
+                    (add_signed!(instruction_address, bimmediate) % 2) == 0,
                     "Branch target addr not 4 byte aligned."
                 );
-                register_file.pc = add_signed!(instruction_address, sign_imm);
+                register_file.pc = add_signed!(instruction_address, bimmediate);
                 return true;
             }
         }
         Instruction::BLT(rs1index, rs2index, bimmediate) => {
             let rs1: RS1value = register_file.read(rs1index);
             let rs2: RS2value = register_file.read(rs2index);
-            let sign_imm = sign_extend(bimmediate, 12) as i32;
             if (rs1 as i32) < (rs2 as i32) {
                 assert!(
-                    (add_signed!(instruction_address, sign_imm) % 2) == 0,
+                    (add_signed!(instruction_address, bimmediate) % 2) == 0,
                     "Branch target addr not 4 byte aligned."
                 );
-                register_file.pc = add_signed!(instruction_address, sign_imm);
+                register_file.pc = add_signed!(instruction_address, bimmediate);
                 return true;
             }
         }
         Instruction::BGE(rs1index, rs2index, bimmediate) => {
             let rs1: RS1value = register_file.read(rs1index);
             let rs2: RS2value = register_file.read(rs2index);
-            let sign_imm = sign_extend(bimmediate, 12) as i32;
             if (rs1 as i32) >= (rs2 as i32) {
                 assert!(
-                    (add_signed!(instruction_address, sign_imm) % 2) == 0,
+                    (add_signed!(instruction_address, bimmediate) % 2) == 0,
                     "Branch target addr not 4 byte aligned."
                 );
-                register_file.pc = add_signed!(instruction_address, sign_imm);
+                register_file.pc = add_signed!(instruction_address, bimmediate);
                 return true;
             }
         }
         Instruction::BLTU(rs1index, rs2index, bimmediate) => {
             let rs1: RS1value = register_file.read(rs1index);
             let rs2: RS2value = register_file.read(rs2index);
-            let sign_imm = sign_extend(bimmediate, 12) as i32;
             if rs1 < rs2 {
                 assert!(
-                    (add_signed!(instruction_address, sign_imm) % 2) == 0,
+                    (add_signed!(instruction_address, bimmediate) % 2) == 0,
                     "Branch target addr not 4 byte aligned."
                 );
-                register_file.pc = add_signed!(instruction_address, sign_imm);
+                register_file.pc = add_signed!(instruction_address, bimmediate);
                 return true;
             }
         }
         Instruction::BGEU(rs1index, rs2index, bimmediate) => {
             let rs1: RS1value = register_file.read(rs1index);
             let rs2: RS2value = register_file.read(rs2index);
-            let sign_imm = sign_extend(bimmediate, 12) as i32;
             if rs1 >= rs2 {
                 assert!(
-                    (add_signed!(instruction_address, sign_imm) % 2) == 0,
+                    (add_signed!(instruction_address, bimmediate) % 2) == 0,
                     "Branch target addr not 4 byte aligned."
                 );
-                register_file.pc = add_signed!(instruction_address, sign_imm);
+                register_file.pc = add_signed!(instruction_address, bimmediate);
                 return true;
             }
         }
         Instruction::LB(rdindex, rs1index, iimmediate) => {
             let rs1: RS1value = register_file.read(rs1index);
-            let sign_imm = sign_extend(iimmediate, 12) as i32;
-            let target = add_signed!(rs1, sign_imm) as usize;
+            let target = add_signed!(rs1, iimmediate) as usize;
             let value = sign_extend(memory.read_byte(target), 8);
             register_file.write(rdindex, value);
         }
         Instruction::LH(rdindex, rs1index, iimmediate) => {
             let rs1: RS1value = register_file.read(rs1index);
-            let sign_imm = sign_extend(iimmediate, 12) as i32;
-            let target = add_signed!(rs1, sign_imm) as usize;
+            let target = add_signed!(rs1, iimmediate) as usize;
             let value = sign_extend(memory.read_halfword(target), 16);
             register_file.write(rdindex, value);
         }
         Instruction::LW(rdindex, rs1index, iimmediate) => {
             let rs1: RS1value = register_file.read(rs1index);
-            let sign_imm = sign_extend(iimmediate, 12) as i32;
-            let target = add_signed!(rs1, sign_imm) as usize;
+            let target = add_signed!(rs1, iimmediate) as usize;
             let value = memory.read_word(target);
             register_file.write(rdindex, value);
         }
         Instruction::LBU(rdindex, rs1index, iimmediate) => {
             let rs1: RS1value = register_file.read(rs1index);
-            let sign_imm = sign_extend(iimmediate, 12) as i32;
-            let target = add_signed!(rs1, sign_imm) as usize;
+            let target = add_signed!(rs1, iimmediate) as usize;
             let value = memory.read_byte(target);
             register_file.write(rdindex, value);
         }
         Instruction::LHU(rdindex, rs1index, iimmediate) => {
             let rs1: RS1value = register_file.read(rs1index);
-            let sign_imm = sign_extend(iimmediate, 12) as i32;
-            let target = add_signed!(rs1, sign_imm) as usize;
+            let target = add_signed!(rs1, iimmediate) as usize;
             let value = memory.read_halfword(target);
             register_file.write(rdindex, value);
         }
         Instruction::SB(rs1index, rs2index, simmediate) => {
             let rs1: RS1value = register_file.read(rs1index);
             let rs2: RS2value = register_file.read(rs2index);
-            let sign_imm = sign_extend(simmediate, 12) as i32;
-            let target = add_signed!(rs1, sign_imm) as usize;
+            let target = add_signed!(rs1, simmediate) as usize;
             memory.write_byte(target, rs2);
         }
         Instruction::SH(rs1index, rs2index, simmediate) => {
             let rs1: RS1value = register_file.read(rs1index);
             let rs2: RS2value = register_file.read(rs2index);
-            let sign_imm = sign_extend(simmediate, 12) as i32;
-            let target = add_signed!(rs1, sign_imm) as usize;
+            let target = add_signed!(rs1, simmediate) as usize;
             memory.write_halfword(target, rs2);
         }
         Instruction::SW(rs1index, rs2index, simmediate) => {
             let rs1: RS1value = register_file.read(rs1index);
             let rs2: RS2value = register_file.read(rs2index);
-            let sign_imm = sign_extend(simmediate, 12) as i32;
-            let target = add_signed!(rs1, sign_imm) as usize;
+            let target = add_signed!(rs1, simmediate) as usize;
             memory.write_word(target, rs2);
         }
         Instruction::ADDI(rdindex, rs1index, iimmediate) => {
             let rs1: RS1value = register_file.read(rs1index);
-            let sign_imm = sign_extend(iimmediate, 12) as i32;
-            register_file.write(rdindex, add_signed!(rs1, sign_imm));
+            register_file.write(rdindex, add_signed!(rs1, iimmediate));
         }
         Instruction::SLTI(rdindex, rs1index, iimmediate) => {
             let rs1: RS1value = register_file.read(rs1index);
-            let sign_imm = sign_extend(iimmediate, 12);
-            if (rs1 as i32) < (sign_imm as i32) {
+            if (rs1 as i32) < iimmediate {
                 register_file.write(rdindex, 1);
             } else {
                 register_file.write(rdindex, 0);
@@ -230,8 +216,7 @@ pub fn exec(
         }
         Instruction::SLTIU(rdindex, rs1index, iimmediate) => {
             let rs1: RS1value = register_file.read(rs1index);
-            let sign_imm = sign_extend(iimmediate, 12);
-            if rs1 < sign_imm {
+            if rs1 < iimmediate as u32 {
                 register_file.write(rdindex, 1);
             } else {
                 register_file.write(rdindex, 0);
@@ -239,15 +224,15 @@ pub fn exec(
         }
         Instruction::XORI(rdindex, rs1index, iimmediate) => {
             let rs1: RS1value = register_file.read(rs1index);
-            register_file.write(rdindex, rs1 ^ sign_extend(iimmediate, 12));
+            register_file.write(rdindex, rs1 ^ iimmediate as u32);
         }
         Instruction::ORI(rdindex, rs1index, iimmediate) => {
             let rs1: RS1value = register_file.read(rs1index);
-            register_file.write(rdindex, rs1 | sign_extend(iimmediate, 12));
+            register_file.write(rdindex, rs1 | iimmediate as u32);
         }
         Instruction::ANDI(rdindex, rs1index, iimmediate) => {
             let rs1: RS1value = register_file.read(rs1index);
-            register_file.write(rdindex, rs1 & sign_extend(iimmediate, 12));
+            register_file.write(rdindex, rs1 & iimmediate as u32);
         }
         Instruction::SLLI(rdindex, rs1index, iimmediate) => {
             let shamt = iimmediate & 0b1_1111;
@@ -260,7 +245,7 @@ pub fn exec(
             register_file.write(rdindex, rs1 >> shamt);
         }
         Instruction::SRAI(rdindex, rs1index, iimmediate) => {
-            let shamt = iimmediate & 0b1_1111;
+            let shamt = (iimmediate & 0b1_1111) as u32;
             let rs1: RS1value = register_file.read(rs1index);
             let value = sign_extend(rs1 >> shamt, 32 - shamt);
             register_file.write(rdindex, value);
