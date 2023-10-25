@@ -1,7 +1,7 @@
-use crate::decoder_q0;
-use crate::decoder_q1;
-use crate::decoder_q2;
-use crate::decoder_q3;
+mod decoder_q0;
+mod decoder_q1;
+mod decoder_q2;
+mod decoder_q3;
 use crate::instructions::Instruction;
 
 pub type Rindex = usize;
@@ -12,21 +12,24 @@ pub type RS2index = Rindex;
 pub type RS1value = u32;
 pub type RS2value = u32;
 
-pub type Iimmediate = u32;
-pub type Simmediate = u32;
-pub type Bimmediate = u32;
-pub type Uimmediate = u32;
-pub type Jimmediate = u32;
+pub type Immediate = i32;
 
-/* Compressed instructions immediates */
-pub type CNZUimmediate = u32;
-pub type CUimmediate = u32;
-pub type CNZimmediate = u32;
-pub type CJimmediate = u32;
-pub type Cimmediate = u32;
-pub type CLUimmediate = u32;
+pub fn sign_extend(num: u32, bitnum: u32) -> u32 {
+    let msb = num >> (bitnum - 1);
+    let sign_filled = {
+        if msb == 0 {
+            0x0
+        } else {
+            (!0x0u32).checked_shl(bitnum).unwrap_or(0)
+        }
+    };
+    sign_filled | num
+}
 
-#[allow(clippy::too_many_lines)]
+pub fn bit_from_to(inst: u32, from: u32, to: u32) -> u32 {
+    ((inst >> from) & 1) << to
+}
+
 pub fn decode(instruction: u32) -> Result<Instruction, &'static str> {
     let encoding_quadrant = instruction & 0b11;
     match encoding_quadrant {
@@ -47,7 +50,7 @@ pub fn decode(instruction: u32) -> Result<Instruction, &'static str> {
             decoder_q3::decode(instruction)
         }
         _ => {
-            panic!("Can't happen")
+            unreachable!()
         }
     }
 }

@@ -65,6 +65,7 @@ pub struct CSR {
     pub mtval2: u32,
 }
 
+#[allow(clippy::manual_range_patterns)]
 impl CSR {
     pub fn read(&self, index: u32) -> u32 {
         match index {
