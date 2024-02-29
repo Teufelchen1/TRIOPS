@@ -1,18 +1,9 @@
 use crate::decoder::{RS1value, RS2value};
 use crate::instructions::{decompress, Instruction};
-use crate::system::{Memory, RegisterFile};
+use crate::memory::Memory;
+use crate::register::Register;
 
-fn sign_extend(num: u32, bitnum: u32) -> u32 {
-    let msb = num >> (bitnum - 1);
-    let sign_filled = {
-        if msb == 0 {
-            0x0
-        } else {
-            (!0x0u32).checked_shl(bitnum).unwrap_or(0)
-        }
-    };
-    sign_filled | num
-}
+use crate::utils::sign_extend;
 
 macro_rules! add_signed {
     ($unsigned:expr, $signed:expr) => {{
@@ -30,7 +21,7 @@ macro_rules! add_signed {
  * emulator should quit. */
 #[allow(clippy::too_many_lines)]
 pub fn exec(
-    register_file: &mut RegisterFile,
+    register_file: &mut Register,
     memory: &mut Memory,
     instruction: &Instruction,
     zicsr_enabled: bool,
@@ -63,7 +54,10 @@ pub fn exec(
             register_file.write(rdindex, uimmediate as u32);
         }
         Instruction::AUIPC(rdindex, uimmediate) => {
-            register_file.write(rdindex, (register_file.pc - 4).wrapping_add(uimmediate as u32));
+            register_file.write(
+                rdindex,
+                (register_file.pc - 4).wrapping_add(uimmediate as u32),
+            );
         }
         Instruction::JAL(rdindex, jimmediate) => {
             register_file.write(rdindex, register_file.pc);

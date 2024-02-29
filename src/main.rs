@@ -32,8 +32,13 @@ use decoder::decode;
 mod executer;
 use executer::exec;
 
-mod system;
-use system::{Memory, RegisterFile};
+mod memory;
+use memory::Memory;
+
+mod register;
+use register::Register;
+
+mod utils;
 
 #[derive(Parser, Debug)]
 struct Args {
@@ -47,6 +52,46 @@ struct Args {
     testing: bool,
 }
 
+fn ui_loop(register_file: &mut Register, memory: &mut Memory) -> anyhow::Result<()>  {
+    enable_raw_mode()?;
+    let stdout = io::stdout();
+    let backend = CrosstermBackend::new(stdout);
+    let mut terminal = Terminal::new(backend)?;
+    let _ = terminal.clear();
+
+    let mut ui = ViewState::new();
+
+    loop {
+        terminal.draw(|f| ui.ui(f, register_file, memory))?;
+
+        if let Event::Key(key) = event::read()? {
+            match key.code {
+                KeyCode::Char('q') => {
+                    break;
+                }
+                KeyCode::Char('s') => {
+                    let inst = decode(memory.read_word(register_file.pc as usize)).unwrap();
+                    if !exec(register_file, memory, &inst, true, true) {
+                        break;
+                    }
+                }
+                _ => todo!(),
+            }
+        }
+    }
+
+    terminal.clear();
+
+    disable_raw_mode()?;
+    execute!(
+        terminal.backend_mut(),
+        LeaveAlternateScreen,
+        DisableMouseCapture
+    )?;
+    terminal.show_cursor()?;
+    Ok(())
+}
+
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
 
@@ -55,7 +100,7 @@ fn main() -> anyhow::Result<()> {
     let slice = file_data.as_slice();
     let elffile = ElfBytes::<AnyEndian>::minimal_parse(slice).unwrap();
 
-    let mut register_file: RegisterFile = RegisterFile::default();
+    let mut register_file: Register = Register::default();
     let mut memory: Memory = Memory::default_hifive();
 
     for phdr in elffile.segments().unwrap() {
@@ -86,40 +131,7 @@ fn main() -> anyhow::Result<()> {
             }
         }
     } else {
-        enable_raw_mode()?;
-        let stdout = io::stdout();
-        let backend = CrosstermBackend::new(stdout);
-        let mut terminal = Terminal::new(backend)?;
-        let _ = terminal.clear();
-
-        let mut ui = ViewState::new();
-
-        loop {
-            terminal.draw(|f| ui.ui(f, &register_file, &memory))?;
-
-            if let Event::Key(key) = event::read()? {
-                match key.code {
-                    KeyCode::Char('q') => {
-                        break;
-                    }
-                    KeyCode::Char('s') => {
-                        let inst = decode(memory.read_word(register_file.pc as usize)).unwrap();
-                        if !exec(&mut register_file, &mut memory, &inst, true, true) {
-                            break;
-                        }
-                    }
-                    _ => todo!(),
-                }
-            }
-        }
-
-        disable_raw_mode()?;
-        execute!(
-            terminal.backend_mut(),
-            LeaveAlternateScreen,
-            DisableMouseCapture
-        )?;
-        terminal.show_cursor()?;
+        return ui_loop(&mut register_file, &mut memory);
     }
 
     if args.testing {
