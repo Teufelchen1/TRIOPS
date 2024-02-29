@@ -1,4 +1,4 @@
-use crate::decoder::{bit_from_to, RDindex, RS1index, Immediate};
+use crate::decoder::{bit_from_to, Immediate, RDindex, RS1index};
 use crate::instructions::Instruction;
 
 #[derive(Debug, PartialEq)]

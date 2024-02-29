@@ -1,5 +1,6 @@
 use crate::decoder::decode;
-use crate::system::{register_name, Memory, RegisterFile};
+use crate::memory::Memory;
+use crate::register::{index_to_name, Register};
 
 use tui::{
     backend::Backend,
@@ -74,7 +75,7 @@ impl ViewState {
         }
     }
 
-    fn prepare_register_table(&mut self, rf: &RegisterFile) {
+    fn prepare_register_table(&mut self, rf: &Register) {
         for k in 0..8 {
             for n in 0..4 {
                 let index = k * 4 + n;
@@ -83,7 +84,7 @@ impl ViewState {
         }
     }
 
-    fn prepare_instruction_list(&mut self, rf: &RegisterFile, mem: &Memory) {
+    fn prepare_instruction_list(&mut self, rf: &Register, mem: &Memory) {
         self.instruction_list
             .truncate(self.instruction_list.len() / 2);
 
@@ -113,7 +114,7 @@ impl ViewState {
         self.list_state.select(Some(9));
     }
 
-    pub fn ui<B: Backend>(&mut self, f: &mut Frame<B>, rf: &RegisterFile, mem: &Memory) {
+    pub fn ui<B: Backend>(&mut self, f: &mut Frame<B>, rf: &Register, mem: &Memory) {
         let size = f.size();
 
         let block = Block::default()

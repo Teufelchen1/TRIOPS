@@ -1,5 +1,6 @@
-use crate::decoder::{bit_from_to, sign_extend, RDindex, RS1index, Immediate};
+use crate::decoder::{bit_from_to, Immediate, RDindex, RS1index};
 use crate::instructions::Instruction;
+use crate::utils::sign_extend;
 
 #[derive(Debug, PartialEq)]
 enum OpCode {
@@ -20,40 +21,47 @@ fn get_imm(inst: u32) -> u32 {
 
 /* CJ format */
 fn get_jimm(inst: u32) -> Immediate {
-    sign_extend(bit_from_to(inst, 2, 5)
-        + bit_from_to(inst, 3, 1)
-        + bit_from_to(inst, 4, 2)
-        + bit_from_to(inst, 5, 3)
-        + bit_from_to(inst, 6, 7)
-        + bit_from_to(inst, 7, 6)
-        + bit_from_to(inst, 8, 10)
-        + bit_from_to(inst, 9, 8)
-        + bit_from_to(inst, 10, 9)
-        + bit_from_to(inst, 11, 4)
-        + bit_from_to(inst, 12, 11), 12) as Immediate
+    sign_extend(
+        bit_from_to(inst, 2, 5)
+            + bit_from_to(inst, 3, 1)
+            + bit_from_to(inst, 4, 2)
+            + bit_from_to(inst, 5, 3)
+            + bit_from_to(inst, 6, 7)
+            + bit_from_to(inst, 7, 6)
+            + bit_from_to(inst, 8, 10)
+            + bit_from_to(inst, 9, 8)
+            + bit_from_to(inst, 10, 9)
+            + bit_from_to(inst, 11, 4)
+            + bit_from_to(inst, 12, 11),
+        12,
+    ) as Immediate
 }
 
 /* CB format */
 fn get_bimm(inst: u32) -> Immediate {
     sign_extend(
-    bit_from_to(inst, 2, 5)
-        + bit_from_to(inst, 3, 1)
-        + bit_from_to(inst, 4, 2)
-        + bit_from_to(inst, 5, 6)
-        + bit_from_to(inst, 6, 7)
-        + bit_from_to(inst, 10, 3)
-        + bit_from_to(inst, 11, 4)
-        + bit_from_to(inst, 12, 8), 12) as Immediate
+        bit_from_to(inst, 2, 5)
+            + bit_from_to(inst, 3, 1)
+            + bit_from_to(inst, 4, 2)
+            + bit_from_to(inst, 5, 6)
+            + bit_from_to(inst, 6, 7)
+            + bit_from_to(inst, 10, 3)
+            + bit_from_to(inst, 11, 4)
+            + bit_from_to(inst, 12, 8),
+        12,
+    ) as Immediate
 }
 
 fn get_addi16spimm(inst: u32) -> Immediate {
     sign_extend(
-    bit_from_to(inst, 2, 5)
-        + bit_from_to(inst, 3, 7)
-        + bit_from_to(inst, 4, 8)
-        + bit_from_to(inst, 5, 6)
-        + bit_from_to(inst, 6, 4)
-        + bit_from_to(inst, 12, 9), 10) as Immediate
+        bit_from_to(inst, 2, 5)
+            + bit_from_to(inst, 3, 7)
+            + bit_from_to(inst, 4, 8)
+            + bit_from_to(inst, 5, 6)
+            + bit_from_to(inst, 6, 4)
+            + bit_from_to(inst, 12, 9),
+        10,
+    ) as Immediate
 }
 
 /* Valid for CI and CB */
@@ -99,10 +107,7 @@ pub fn decode(instruction: u32) -> Result<Instruction, &'static str> {
             let rdindex = ((instruction >> 7) & 0b1_1111) as RDindex;
             assert!(rdindex != 0);
             if rdindex == 2 {
-                Ok(Instruction::CADDI16SP(
-                    2,
-                    get_addi16spimm(instruction),
-                ))
+                Ok(Instruction::CADDI16SP(2, get_addi16spimm(instruction)))
             } else {
                 Ok(Instruction::CLUI(
                     rdindex,
@@ -118,7 +123,10 @@ pub fn decode(instruction: u32) -> Result<Instruction, &'static str> {
             match opt1110 {
                 0b00 => Ok(Instruction::CSRLI(rs1index, imm as Immediate)),
                 0b01 => Ok(Instruction::CSRAI(rs1index, imm as Immediate)),
-                0b10 => Ok(Instruction::CANDI(rs1index, sign_extend(imm, 6) as Immediate)),
+                0b10 => Ok(Instruction::CANDI(
+                    rs1index,
+                    sign_extend(imm, 6) as Immediate,
+                )),
                 0b11 => {
                     let rs2index = (((instruction >> 2) & 0b111) + 8) as RS1index;
                     match opt56 {
