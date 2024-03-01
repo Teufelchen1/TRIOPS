@@ -391,14 +391,14 @@ pub fn exec(
         Instruction::MULHU(rdindex, rs1index, rs2index) => {
             let rs1: RS1value = register_file.read(rs1index);
             let rs2: RS2value = register_file.read(rs2index);
-            let result: u64 = (u64::from(rs1) * u64::from(rs2));
+            let result: u64 = u64::from(rs1) * u64::from(rs2);
             let high_bytes: u32 = (result >> 32) as u32;
             register_file.write(rdindex, high_bytes);
         }
         Instruction::DIV(rdindex, rs1index, rs2index) => {
             let rs1: RS1value = register_file.read(rs1index);
             let rs2: RS2value = register_file.read(rs2index);
-            if (rs2 == 0) {
+            if rs2 == 0 {
                 // The spec defines that -1 should be stored. In 32-bit two's complement, u32::MAX is -1
                 register_file.write(rdindex, u32::MAX);
             } else {
@@ -409,7 +409,7 @@ pub fn exec(
         Instruction::DIVU(rdindex, rs1index, rs2index) => {
             let rs1: RS1value = register_file.read(rs1index);
             let rs2: RS2value = register_file.read(rs2index);
-            if (rs2 == 0) {
+            if rs2 == 0 {
                 register_file.write(rdindex, u32::MAX);
             } else {
                 register_file.write(rdindex, rs1 / rs2);
@@ -418,7 +418,7 @@ pub fn exec(
         Instruction::REM(rdindex, rs1index, rs2index) => {
             let rs1: RS1value = register_file.read(rs1index);
             let rs2: RS2value = register_file.read(rs2index);
-            if (rs2 == 0) {
+            if rs2 == 0 {
                 register_file.write(rdindex, rs1);
             } else {
                 let result = (rs1 as i32).overflowing_rem(rs2 as i32);
@@ -428,7 +428,7 @@ pub fn exec(
         Instruction::REMU(rdindex, rs1index, rs2index) => {
             let rs1: RS1value = register_file.read(rs1index);
             let rs2: RS2value = register_file.read(rs2index);
-            if (rs2 == 0) {
+            if rs2 == 0 {
                 register_file.write(rdindex, rs1);
             } else {
                 register_file.write(rdindex, rs1 % rs2);

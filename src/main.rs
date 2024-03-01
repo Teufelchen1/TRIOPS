@@ -1,4 +1,3 @@
-#![allow(unused)]
 #![allow(clippy::upper_case_acronyms)]
 #![allow(clippy::cast_possible_wrap)]
 #![allow(clippy::cast_possible_truncation)]
@@ -8,7 +7,7 @@ use std::io;
 
 use clap::Parser;
 
-use ratatui::{backend::CrosstermBackend, prelude::Backend, Terminal};
+use ratatui::{backend::CrosstermBackend, Terminal};
 
 use crossterm::{
     event::{self, DisableMouseCapture, Event, KeyCode},
@@ -16,27 +15,21 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, LeaveAlternateScreen},
 };
 
-use elf::abi;
-use elf::endian::AnyEndian;
-use elf::ElfBytes;
-
 mod ui;
 use ui::ViewState;
 
 mod instructions;
-use instructions::Instruction;
 
 mod decoder;
-use decoder::decode;
 
 mod executer;
-use executer::exec;
 
 mod memory;
-use memory::Memory;
 
 mod register;
-use register::Register;
+
+mod cpu;
+use cpu::CPU;
 
 mod utils;
 
@@ -52,7 +45,7 @@ struct Args {
     testing: bool,
 }
 
-fn ui_loop(register_file: &mut Register, memory: &mut Memory) -> anyhow::Result<()> {
+fn ui_loop(cpu: &mut CPU) -> anyhow::Result<()> {
     enable_raw_mode()?;
     let stdout = io::stdout();
     let backend = CrosstermBackend::new(stdout);
@@ -62,7 +55,7 @@ fn ui_loop(register_file: &mut Register, memory: &mut Memory) -> anyhow::Result<
     let mut ui = ViewState::new();
 
     loop {
-        terminal.draw(|f| ui.ui(f, register_file, memory))?;
+        terminal.draw(|f| ui.ui(f, &cpu.register, &cpu.memory))?;
 
         if let Event::Key(key) = event::read()? {
             match key.code {
@@ -70,8 +63,7 @@ fn ui_loop(register_file: &mut Register, memory: &mut Memory) -> anyhow::Result<
                     break;
                 }
                 KeyCode::Char('s') => {
-                    let inst = decode(memory.read_word(register_file.pc as usize)).unwrap();
-                    if !exec(register_file, memory, &inst, true, true) {
+                    if !cpu.step() {
                         break;
                     }
                 }
@@ -80,7 +72,7 @@ fn ui_loop(register_file: &mut Register, memory: &mut Memory) -> anyhow::Result<
         }
     }
 
-    terminal.clear();
+    let _ = terminal.clear();
 
     disable_raw_mode()?;
     execute!(
@@ -97,49 +89,25 @@ fn main() -> anyhow::Result<()> {
 
     let path = std::path::PathBuf::from(args.file);
     let file_data = std::fs::read(path).unwrap();
-    let slice = file_data.as_slice();
-    let elffile = ElfBytes::<AnyEndian>::minimal_parse(slice).unwrap();
 
-    let mut register_file: Register = Register::default();
-    let mut memory: Memory = Memory::default_hifive();
-
-    for phdr in elffile.segments().unwrap() {
-        if phdr.p_type == abi::PT_LOAD {
-            let mut addr = usize::try_from(phdr.p_paddr).unwrap();
-            if memory.is_rom(addr) {
-                for i in elffile.segment_data(&phdr).unwrap() {
-                    memory.rom[addr - memory.rom_base] = *i;
-                    addr += 1;
-                }
-            } else if memory.is_ram(addr) {
-                for i in elffile.segment_data(&phdr).unwrap() {
-                    memory.ram[addr - memory.ram_base] = *i;
-                    addr += 1;
-                }
-            }
-        }
-    }
-
-    register_file.pc = u32::try_from(elffile.ehdr.e_entry).unwrap();
+    let mut cpu = CPU::default(&file_data);
 
     if args.headless {
         loop {
-            let inst = decode(memory.read_word(register_file.pc as usize)).unwrap();
-
-            if !exec(&mut register_file, &mut memory, &inst, true, true) {
+            if !cpu.step() {
                 break;
             }
         }
     } else {
-        return ui_loop(&mut register_file, &mut memory);
+        return ui_loop(&mut cpu);
     }
 
     if args.testing {
-        let reg = register_file.read(17);
+        let reg = cpu.register.read(17);
         if reg != 93 {
-            println!("Test failed: {:}", register_file.read(10));
+            println!("Test failed: {:}", cpu.register.read(10));
         }
-        anyhow::ensure!(register_file.read(17) == 93, "Test failed");
+        anyhow::ensure!(cpu.register.read(17) == 93, "Test failed");
     } else {
         println!("Done!");
     }
