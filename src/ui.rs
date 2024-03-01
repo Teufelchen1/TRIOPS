@@ -3,7 +3,6 @@ use crate::memory::Memory;
 use crate::register::Register;
 
 use ratatui::{
-    backend::Backend,
     layout::{Alignment, Constraint, Direction, Layout},
     style::{Modifier, Style},
     text::Span,

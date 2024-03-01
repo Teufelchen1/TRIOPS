@@ -7,7 +7,7 @@ use std::io;
 
 use clap::Parser;
 
-use ratatui::{backend::CrosstermBackend, prelude::Backend, Terminal};
+use ratatui::{backend::CrosstermBackend, Terminal};
 
 use crossterm::{
     event::{self, DisableMouseCapture, Event, KeyCode},
@@ -72,7 +72,7 @@ fn ui_loop(cpu: &mut CPU) -> anyhow::Result<()> {
         }
     }
 
-    terminal.clear();
+    let _ = terminal.clear();
 
     disable_raw_mode()?;
     execute!(

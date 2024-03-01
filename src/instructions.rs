@@ -1,6 +1,7 @@
 use crate::decoder::{Immediate, RDindex, RS1index, RS2index};
 use crate::register::index_to_name;
 
+#[allow(dead_code)]
 #[derive(Debug)]
 pub enum Instruction {
     /* RV32I */
@@ -698,7 +699,6 @@ impl Instruction {
             Instruction::CFSWSP(rs2index, cluimmediate) => {
                 format!("C.FSWSP {:}, {:}", index_to_name(rs2index), cluimmediate)
             }
-            _ => format!("{self:?}"),
         }
     }
 }
