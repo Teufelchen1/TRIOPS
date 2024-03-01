@@ -1,5 +1,4 @@
-use crate::decoder::decode;
-use crate::memory::Memory;
+use crate::cpu::CPU;
 use crate::register::Register;
 
 use ratatui::{
@@ -83,37 +82,31 @@ impl ViewState {
         }
     }
 
-    fn prepare_instruction_list(&mut self, rf: &Register, mem: &Memory) {
+    fn prepare_instruction_list(&mut self, cpu: &CPU) {
         self.instruction_list
             .truncate(self.instruction_list.len() / 2);
 
-        let mut pc = rf.pc;
-        for n in 0..11 {
-            let inst = decode(mem.read_word((rf.pc + n * 4) as usize));
-            if let Ok(cur_inst) = inst {
-                self.instruction_list
-                    .push(format!("0x{:08X}: {:}", pc, cur_inst.print()));
-                if cur_inst.is_compressed() {
-                    pc += 2;
-                } else {
-                    pc += 4;
+        let next_inst = cpu.next_n_instructions(11);
+        for (addr, inst) in next_inst {
+            match inst {
+                Ok(cur_inst) => {
+                    self.instruction_list
+                        .push(format!("0x{:08X}: {:}", addr, cur_inst.print()));
                 }
-            } else {
-                self.instruction_list.push(format!(
-                    "0x{:08X}: {:08X}",
-                    pc,
-                    mem.read_word((rf.pc + n * 4) as usize)
-                ));
-                pc += 4;
+                Err(hex) => {
+                    self.instruction_list
+                        .push(format!("0x{addr:08X}: {hex:08X}"));
+                }
             }
         }
+
         while self.instruction_list.len() > 20 {
             self.instruction_list.remove(0);
         }
         self.list_state.select(Some(9));
     }
 
-    pub fn ui(&mut self, f: &mut Frame, rf: &Register, mem: &Memory) {
+    pub fn ui(&mut self, f: &mut Frame, cpu: &CPU) {
         let size = f.size();
 
         let block = Block::default()
@@ -138,7 +131,7 @@ impl ViewState {
             .borders(Borders::ALL)
             .title(vec![Span::from("PC:\tInstruction")]);
 
-        self.prepare_instruction_list(rf, mem);
+        self.prepare_instruction_list(cpu);
         let items: Vec<ListItem> = self
             .instruction_list
             .iter()
@@ -155,7 +148,7 @@ impl ViewState {
             .title(vec![Span::from("Registers")])
             .title_alignment(Alignment::Right);
 
-        self.prepare_register_table(rf);
+        self.prepare_register_table(&cpu.register);
         let rows = self.register_table.iter().map(|row| {
             let cells = row.iter().map(|c| Cell::from(c.as_str()));
             Row::new(cells).height(1).bottom_margin(1)

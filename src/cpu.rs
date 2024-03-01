@@ -1,3 +1,5 @@
+use crate::instructions::Instruction;
+
 use crate::decoder::decode;
 
 use crate::executer::exec;
@@ -46,8 +48,53 @@ impl CPU {
         cpu
     }
 
+    pub fn instruction_at_addr(&self, addr: usize) -> Result<Instruction, &'static str> {
+        decode(self.memory.read_word(addr))
+    }
+
+    pub fn current_instruction(&self) -> (u32, Instruction) {
+        let addr = self.register.pc;
+        let inst = self.instruction_at_addr(addr as usize).unwrap();
+        (addr, inst)
+    }
+
+    #[allow(dead_code)]
+    pub fn next_instruction(&self) -> (u32, Instruction) {
+        let (cur_addr, cur_inst) = self.current_instruction();
+        let addr = {
+            if cur_inst.is_compressed() {
+                cur_addr + 2
+            } else {
+                cur_addr + 4
+            }
+        };
+        let inst = self.instruction_at_addr(addr as usize).unwrap();
+        (addr, inst)
+    }
+
+    pub fn next_n_instructions(&self, n: usize) -> Vec<(usize, Result<Instruction, u32>)> {
+        let mut instruction_list = Vec::new();
+        let mut addr = self.register.pc as usize;
+        for _ in 0..n {
+            let cur_inst = self.instruction_at_addr(addr);
+            if let Ok(inst) = cur_inst {
+                let compressed = inst.is_compressed();
+                instruction_list.push((addr, Ok(inst)));
+                if compressed {
+                    addr += 2;
+                } else {
+                    addr += 4;
+                }
+            } else {
+                instruction_list.push((addr, Err(self.memory.read_word(addr))));
+                addr += 4;
+            }
+        }
+        instruction_list
+    }
+
     pub fn step(&mut self) -> bool {
-        let inst = decode(self.memory.read_word(self.register.pc as usize)).unwrap();
+        let (_, inst) = self.current_instruction();
         exec(&mut self.register, &mut self.memory, &inst, true, true)
     }
 }

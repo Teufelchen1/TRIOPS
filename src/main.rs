@@ -55,7 +55,7 @@ fn ui_loop(cpu: &mut CPU) -> anyhow::Result<()> {
     let mut ui = ViewState::new();
 
     loop {
-        terminal.draw(|f| ui.ui(f, &cpu.register, &cpu.memory))?;
+        terminal.draw(|f| ui.ui(f, cpu))?;
 
         if let Event::Key(key) = event::read()? {
             match key.code {
