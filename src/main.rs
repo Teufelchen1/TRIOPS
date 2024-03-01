@@ -15,27 +15,27 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, LeaveAlternateScreen},
 };
 
-use elf::abi;
-use elf::endian::AnyEndian;
-use elf::ElfBytes;
+
+
+
 
 mod ui;
 use ui::ViewState;
 
 mod instructions;
-use instructions::Instruction;
+
 
 mod decoder;
-use decoder::decode;
+
 
 mod executer;
-use executer::exec;
+
 
 mod memory;
-use memory::Memory;
+
 
 mod register;
-use register::Register;
+
 
 mod cpu;
 use cpu::CPU;

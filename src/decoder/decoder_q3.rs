@@ -6,7 +6,7 @@ type Funct3 = u32;
 type Funct7 = u32;
 
 fn immediate_i(instruction: u32) -> Immediate {
-    sign_extend((instruction >> 20), 12) as Immediate
+    sign_extend(instruction >> 20, 12) as Immediate
 }
 
 fn immediate_system(instruction: u32) -> u32 {
@@ -41,7 +41,7 @@ fn immediate_j(instruction: u32) -> Immediate {
     let bits_19_12 = (instruction >> 12) & 0b1111_1111;
     let bits_20 = (instruction >> 31) & 0b1;
     sign_extend(
-        ((bits_20 << 20) | (bits_19_12 << 12) | (bits_11 << 11) | (bits_10_1 << 1)),
+        (bits_20 << 20) | (bits_19_12 << 12) | (bits_11 << 11) | (bits_10_1 << 1),
         20,
     ) as Immediate
 }

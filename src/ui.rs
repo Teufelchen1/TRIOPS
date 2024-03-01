@@ -1,6 +1,6 @@
 use crate::decoder::decode;
 use crate::memory::Memory;
-use crate::register::{index_to_name, Register};
+use crate::register::{Register};
 
 use ratatui::{
     backend::Backend,

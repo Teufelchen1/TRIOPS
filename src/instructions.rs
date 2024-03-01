@@ -110,27 +110,27 @@ pub fn decompress(inst: &Instruction) -> Instruction {
         Instruction::CADDI4SPN(rdindex, cnzuimmediate) => {
             Instruction::ADDI(rdindex, 2, cnzuimmediate)
         }
-        Instruction::CFLD(rdindex, rs1index, cuimmediate) => todo!(),
-        Instruction::CLQ(rdindex, rs1index, cuimmediate) => todo!(),
+        Instruction::CFLD(_rdindex, _rs1index, _cuimmediate) => todo!(),
+        Instruction::CLQ(_rdindex, _rs1index, _cuimmediate) => todo!(),
         Instruction::CLW(rdindex, rs1index, cuimmediate) => {
             Instruction::LW(rdindex, rs1index, cuimmediate)
         }
-        Instruction::CFLW(rdindex, rs1index, cuimmediate) => todo!(),
-        Instruction::CLD(rdindex, rs1index, cuimmediate) => todo!(),
-        Instruction::CFSD(rdindex, rs1index, cuimmediate) => todo!(),
-        Instruction::CSQ(rdindex, rs1index, cuimmediate) => todo!(),
+        Instruction::CFLW(_rdindex, _rs1index, _cuimmediate) => todo!(),
+        Instruction::CLD(_rdindex, _rs1index, _cuimmediate) => todo!(),
+        Instruction::CFSD(_rdindex, _rs1index, _cuimmediate) => todo!(),
+        Instruction::CSQ(_rdindex, _rs1index, _cuimmediate) => todo!(),
         Instruction::CSW(rdindex, rs1index, cuimmediate) => {
             Instruction::SW(rdindex, rs1index, cuimmediate)
         }
-        Instruction::CFSW(rdindex, rs1index, cuimmediate) => todo!(),
-        Instruction::CSD(rdindex, rs1index, cuimmediate) => todo!(),
-        Instruction::CNOP(rdindex, cnzimmediate) => todo!(),
+        Instruction::CFSW(_rdindex, _rs1index, _cuimmediate) => todo!(),
+        Instruction::CSD(_rdindex, _rs1index, _cuimmediate) => todo!(),
+        Instruction::CNOP(_rdindex, _cnzimmediate) => todo!(),
         Instruction::CADDI(rdindex, cnzimmediate) => {
             Instruction::ADDI(rdindex, rdindex, cnzimmediate)
         }
         Instruction::CJAL(cjimmediate) => Instruction::JAL(1, cjimmediate),
         Instruction::CLI(rdindex, cimmediate) => Instruction::ADDI(rdindex, 0, cimmediate),
-        Instruction::CADDI16SP(rdindex, cnzimmediate) => Instruction::ADDI(2, 2, cnzimmediate),
+        Instruction::CADDI16SP(_rdindex, cnzimmediate) => Instruction::ADDI(2, 2, cnzimmediate),
         Instruction::CLUI(rdindex, cnzimmediate) => Instruction::LUI(rdindex, cnzimmediate),
         Instruction::CSRLI(rdindex, cnzuimmediate) => {
             Instruction::SRLI(rdindex, rdindex, cnzuimmediate)
@@ -151,17 +151,17 @@ pub fn decompress(inst: &Instruction) -> Instruction {
         Instruction::CSLLI(rdindex, cnzuimmediate) => {
             Instruction::SLLI(rdindex, rdindex, cnzuimmediate)
         }
-        Instruction::CFLDSP(rdindex, cuimmediate) => todo!(),
+        Instruction::CFLDSP(_rdindex, _cuimmediate) => todo!(),
         Instruction::CLWSP(rdindex, cuimmediate) => Instruction::LW(rdindex, 2, cuimmediate),
-        Instruction::CFLWSP(rdindex, cuimmediate) => todo!(),
+        Instruction::CFLWSP(_rdindex, _cuimmediate) => todo!(),
         Instruction::CJR(rs1index) => Instruction::JALR(0, rs1index, 0),
         Instruction::CMV(rdindex, rs2index) => Instruction::ADD(rdindex, 0, rs2index),
         Instruction::CEBREAK() => Instruction::EBREAK(),
         Instruction::CJALR(rs1index) => Instruction::JALR(1, rs1index, 0),
         Instruction::CADD(rdindex, rs2index) => Instruction::ADD(rdindex, rdindex, rs2index),
-        Instruction::CFSDSP(rs2index, cluimmediate) => todo!(),
+        Instruction::CFSDSP(_rs2index, _cluimmediate) => todo!(),
         Instruction::CSWSP(rs2index, cluimmediate) => Instruction::SW(2, rs2index, cluimmediate),
-        Instruction::CFSWSP(rs2index, cluimmediate) => todo!(),
+        Instruction::CFSWSP(_rs2index, _cluimmediate) => todo!(),
         _ => panic!(),
     }
 }
