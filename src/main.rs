@@ -15,27 +15,18 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, LeaveAlternateScreen},
 };
 
-
-
-
-
 mod ui;
 use ui::ViewState;
 
 mod instructions;
 
-
 mod decoder;
-
 
 mod executer;
 
-
 mod memory;
 
-
 mod register;
-
 
 mod cpu;
 use cpu::CPU;
