@@ -8,7 +8,7 @@ use std::io;
 
 use clap::Parser;
 
-use tui::{backend::CrosstermBackend, Terminal};
+use ratatui::{backend::CrosstermBackend, prelude::Backend, Terminal};
 
 use crossterm::{
     event::{self, DisableMouseCapture, Event, KeyCode},
@@ -52,7 +52,7 @@ struct Args {
     testing: bool,
 }
 
-fn ui_loop(register_file: &mut Register, memory: &mut Memory) -> anyhow::Result<()>  {
+fn ui_loop(register_file: &mut Register, memory: &mut Memory) -> anyhow::Result<()> {
     enable_raw_mode()?;
     let stdout = io::stdout();
     let backend = CrosstermBackend::new(stdout);

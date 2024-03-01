@@ -2,7 +2,7 @@ use crate::decoder::decode;
 use crate::memory::Memory;
 use crate::register::{index_to_name, Register};
 
-use tui::{
+use ratatui::{
     backend::Backend,
     layout::{Alignment, Constraint, Direction, Layout},
     style::{Modifier, Style},
@@ -114,7 +114,7 @@ impl ViewState {
         self.list_state.select(Some(9));
     }
 
-    pub fn ui<B: Backend>(&mut self, f: &mut Frame<B>, rf: &Register, mem: &Memory) {
+    pub fn ui(&mut self, f: &mut Frame, rf: &Register, mem: &Memory) {
         let size = f.size();
 
         let block = Block::default()
@@ -161,15 +161,17 @@ impl ViewState {
             let cells = row.iter().map(|c| Cell::from(c.as_str()));
             Row::new(cells).height(1).bottom_margin(1)
         });
-        let t = Table::new(rows)
-            .block(register_file_table)
-            .highlight_symbol(">> ")
-            .widths(&[
+        let t = Table::new(
+            rows,
+            [
                 Constraint::Percentage(25),
                 Constraint::Percentage(25),
                 Constraint::Percentage(25),
                 Constraint::Percentage(25),
-            ]);
+            ],
+        )
+        .block(register_file_table)
+        .highlight_symbol(">> ");
         f.render_widget(t, right_chunks[0]);
 
         let right_block_down = Block::default()
