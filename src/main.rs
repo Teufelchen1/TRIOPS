@@ -4,6 +4,7 @@
 #![allow(clippy::cast_sign_loss)]
 
 use std::io;
+use std::sync::mpsc;
 
 use clap::Parser;
 
@@ -17,6 +18,9 @@ use crossterm::{
 
 mod ui;
 use ui::ViewState;
+
+mod periph;
+use crate::periph::{UartTty, UartBuffered};
 
 mod instructions;
 
@@ -45,7 +49,7 @@ struct Args {
     testing: bool,
 }
 
-fn ui_loop(cpu: &mut CPU) -> anyhow::Result<()> {
+fn ui_loop(cpu: &mut CPU, uart_rx: &mpsc::Receiver<char>) -> anyhow::Result<()> {
     enable_raw_mode()?;
     let stdout = io::stdout();
     let backend = CrosstermBackend::new(stdout);
@@ -55,7 +59,7 @@ fn ui_loop(cpu: &mut CPU) -> anyhow::Result<()> {
     let mut ui = ViewState::new();
 
     loop {
-        terminal.draw(|f| ui.ui(f, cpu))?;
+        terminal.draw(|f| ui.ui(f, cpu, uart_rx))?;
 
         if let Event::Key(key) = event::read()? {
             match key.code {
@@ -93,13 +97,18 @@ fn main() -> anyhow::Result<()> {
     let mut cpu = CPU::default(&file_data);
 
     if args.headless {
+        let tty = UartTty{};
+        cpu.memory.periph.push(Box::new(tty));
         loop {
             if !cpu.step() {
                 break;
             }
         }
     } else {
-        return ui_loop(&mut cpu);
+        let (tx, rx): (mpsc::Sender<char>, mpsc::Receiver<char>) = mpsc::channel();
+        let buffered = UartBuffered{sink: tx};
+        cpu.memory.periph.push(Box::new(buffered));
+        return ui_loop(&mut cpu, &rx);
     }
 
     if args.testing {

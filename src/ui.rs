@@ -1,11 +1,12 @@
 use crate::cpu::CPU;
 use crate::register::Register;
+use std::sync::mpsc;
 
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout},
     style::{Modifier, Style},
-    text::Span,
-    widgets::{Block, BorderType, Borders, Cell, List, ListItem, ListState, Row, Table},
+    text::{Span, Text},
+    widgets::{Block, BorderType, Borders, Cell, List, ListItem, ListState, Row, Table, Paragraph},
     Frame,
 };
 
@@ -13,10 +14,11 @@ pub struct ViewState {
     register_table: Vec<Vec<String>>,
     list_state: ListState,
     instruction_list: Vec<String>,
+    uart: String,
 }
 
 impl ViewState {
-    pub fn new() -> ViewState {
+    pub fn new() -> Self {
         ViewState {
             register_table: vec![
                 vec![
@@ -70,6 +72,7 @@ impl ViewState {
             ],
             instruction_list: vec!["0x00000000: NOP".to_string(); 20],
             list_state: ListState::default(),
+            uart: String::new(),
         }
     }
 
@@ -106,7 +109,7 @@ impl ViewState {
         self.list_state.select(Some(9));
     }
 
-    pub fn ui(&mut self, f: &mut Frame, cpu: &CPU) {
+    pub fn ui(&mut self, f: &mut Frame, cpu: &CPU, uart_rx: &mpsc::Receiver<char>) {
         let size = f.size();
 
         let block = Block::default()
@@ -170,6 +173,13 @@ impl ViewState {
             .borders(Borders::ALL)
             .title(vec![Span::from("I/O")])
             .title_alignment(Alignment::Right);
-        f.render_widget(right_block_down, right_chunks[1]);
+
+        if let Ok(msg) = uart_rx.try_recv(){
+            self.uart.push(msg);
+        }
+        let text: &str = &self.uart;
+        let text = Text::from(text);
+        let paragraph = Paragraph::new(text).block(right_block_down);
+        f.render_widget(paragraph, right_chunks[1]);
     }
 }

@@ -1,3 +1,5 @@
+use crate::periph::MmapPeripheral;
+
 pub struct Memory {
     pub io_base: usize,
     pub io_limit: usize,
@@ -7,6 +9,7 @@ pub struct Memory {
     pub rom_base: usize,
     pub rom_limit: usize,
     pub rom: Vec<u8>,
+    pub periph: Vec<Box<dyn MmapPeripheral>>,
 }
 
 impl Memory {
@@ -20,6 +23,7 @@ impl Memory {
             ram_base: 0x8000_0000,
             ram_limit: 0x8000_4000,
             ram: vec![0; 0x4000],
+            periph: Vec::<Box<dyn MmapPeripheral>>::new(),
         }
     }
 
@@ -44,7 +48,14 @@ impl Memory {
             let index = addr - self.rom_base;
             return u32::from(self.rom[index]);
         }
-        panic!("Memory access outside memory map: 0x{addr:X}");
+        if self.is_io(addr) {
+            for periph in &self.periph {
+                if periph.addr_base() <= addr && addr < periph.addr_limit() {
+                    return u32::from(periph.read(addr - periph.addr_base()));
+                }
+            }
+        }
+        panic!("Memory read outside memory map: 0x{addr:X}");
     }
     pub fn read_halfword(&self, index: usize) -> u32 {
         (self.read_byte(index + 1) << 8) + self.read_byte(index)
@@ -59,10 +70,13 @@ impl Memory {
             return;
         }
         if self.is_io(addr) {
-            print!("{:}", char::from_u32(value & 0xFF).unwrap());
-            return;
+            for periph in &self.periph {
+                if periph.addr_base() <= addr && addr < periph.addr_limit() {
+                    return periph.write(addr - periph.addr_base(), (value & 0xFF) as u8);
+                }
+            }
         }
-        panic!("Memory access outside memory map: 0x{addr:X}");
+        panic!("Memory write outside memory map: 0x{addr:X}");
     }
     pub fn write_halfword(&mut self, index: usize, value: u32) {
         self.write_byte(index, value);
