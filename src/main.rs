@@ -57,12 +57,16 @@ fn ui_loop(cpu: &mut CPU, uart_rx: &mpsc::Receiver<char>) -> anyhow::Result<()> 
     let _ = terminal.clear();
 
     let mut ui = ViewState::new();
+    let mut show_help = true;
 
     loop {
-        terminal.draw(|f| ui.ui(f, cpu, uart_rx))?;
+        terminal.draw(|f| ui.ui(f, cpu, uart_rx, show_help))?;
 
         if let Event::Key(key) = event::read()? {
             match key.code {
+                KeyCode::Char('h') => {
+                    show_help = !show_help;
+                }
                 KeyCode::Char('q') => {
                     break;
                 }
