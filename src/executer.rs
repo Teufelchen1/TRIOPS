@@ -15,10 +15,11 @@ macro_rules! add_signed {
     }};
 }
 
-/* Executes one instruction.
- * Returns true except for ebreak.
- * ebreak is used to indicate that the execution terminated and that the
- * emulator should quit. */
+/// Executes one instruction.
+///
+/// Returns true except after the ebreak instruction.
+/// ebreak is used to indicate that the execution terminated and that the
+/// emulator should quit.
 #[allow(clippy::too_many_lines)]
 pub fn exec(
     register_file: &mut Register,
@@ -36,6 +37,10 @@ pub fn exec(
         "M instruction found but M is not enabled."
     );
 
+    // Compressed instructions must be decompressed first, by
+    // doing so, they are expanded to a regular instruction.
+    // Because the PC is advanced based on instruction size (bytes)
+    // we also have to differenciate that here.
     let compressed_instruction;
     let instruction_address = register_file.pc;
     let actual_instruction = {
@@ -66,7 +71,6 @@ pub fn exec(
                 "JAL target addr not 2 byte aligned."
             );
             register_file.pc = add_signed!(instruction_address, jimmediate);
-            return true;
         }
         Instruction::JALR(rdindex, rs1index, iimmediate) => {
             let rs1: RS1value = register_file.read(rs1index);
@@ -74,7 +78,6 @@ pub fn exec(
             assert!(target % 2 == 0, "JALR target addr not 4 byte aligned.");
             register_file.write(rdindex, register_file.pc);
             register_file.pc = target;
-            return true;
         }
         Instruction::BEQ(rs1index, rs2index, bimmediate) => {
             let rs1: RS1value = register_file.read(rs1index);
@@ -85,7 +88,6 @@ pub fn exec(
                     "Branch target addr not 4 byte aligned."
                 );
                 register_file.pc = add_signed!(instruction_address, bimmediate);
-                return true;
             }
         }
         Instruction::BNE(rs1index, rs2index, bimmediate) => {
@@ -97,7 +99,6 @@ pub fn exec(
                     "Branch target addr not 4 byte aligned."
                 );
                 register_file.pc = add_signed!(instruction_address, bimmediate);
-                return true;
             }
         }
         Instruction::BLT(rs1index, rs2index, bimmediate) => {
@@ -109,7 +110,6 @@ pub fn exec(
                     "Branch target addr not 4 byte aligned."
                 );
                 register_file.pc = add_signed!(instruction_address, bimmediate);
-                return true;
             }
         }
         Instruction::BGE(rs1index, rs2index, bimmediate) => {
@@ -121,7 +121,6 @@ pub fn exec(
                     "Branch target addr not 4 byte aligned."
                 );
                 register_file.pc = add_signed!(instruction_address, bimmediate);
-                return true;
             }
         }
         Instruction::BLTU(rs1index, rs2index, bimmediate) => {
@@ -133,7 +132,6 @@ pub fn exec(
                     "Branch target addr not 4 byte aligned."
                 );
                 register_file.pc = add_signed!(instruction_address, bimmediate);
-                return true;
             }
         }
         Instruction::BGEU(rs1index, rs2index, bimmediate) => {
@@ -145,7 +143,6 @@ pub fn exec(
                     "Branch target addr not 4 byte aligned."
                 );
                 register_file.pc = add_signed!(instruction_address, bimmediate);
-                return true;
             }
         }
         Instruction::LB(rdindex, rs1index, iimmediate) => {
@@ -306,7 +303,7 @@ pub fn exec(
         Instruction::FENCE(_rdindex, _rs1index, _iimmediate) => { /* Nop */ }
         Instruction::ECALL() => {
             register_file.csr.mepc = register_file.pc;
-            register_file.csr.mcause = 11; /* Environment call from M-Mode */
+            register_file.csr.mcause = 11; // Environment call from M-Mode
             register_file.pc = register_file.csr.mtvec;
         }
         Instruction::EBREAK() => {
@@ -340,7 +337,7 @@ pub fn exec(
             }
         }
         Instruction::CSRRWI(rd_index, rs1, i_imm) => {
-            /* rs1 is actual an immediate */
+            // rs1 is actual an immediate
             let uimm = u32::try_from(rs1).unwrap();
             if rd_index != 0 {
                 register_file.write(rd_index, register_file.csr.read(i_imm));
@@ -348,7 +345,7 @@ pub fn exec(
             register_file.csr.write(i_imm, uimm);
         }
         Instruction::CSRRSI(rd_index, rs1, i_imm) => {
-            /* rs1 is actual an immediate */
+            // rs1 is actual an immediate
             let uimm = u32::try_from(rs1).unwrap();
             let csr_value = register_file.csr.read(i_imm);
             register_file.write(rd_index, csr_value);
@@ -357,7 +354,7 @@ pub fn exec(
             }
         }
         Instruction::CSRRCI(rd_index, rs1, i_imm) => {
-            /* rs1 is actual an immediate */
+            // rs1 is actual an immediate
             let uimm = u32::try_from(rs1).unwrap();
             let csr_value = register_file.csr.read(i_imm);
             register_file.write(rd_index, csr_value);
@@ -368,8 +365,9 @@ pub fn exec(
         Instruction::MUL(rdindex, rs1index, rs2index) => {
             let rs1: RS1value = register_file.read(rs1index);
             let rs2: RS2value = register_file.read(rs2index);
-            /* Rust panics if the result of the multiplication overflows. The RISC-V spec doesn't care and just stores the low 32 bits
-             * For this reason, the multiplication is done on 64-bit numbers and then typecasted. */
+            // Rust panics if the result of the multiplication overflows. 
+            // The RISC-V spec doesn't care and just stores the low 32 bits
+            // For this reason, the multiplication is done on 64-bit numbers and then typecasted.
             let rs1_64 = u64::from(rs1);
             let rs2_64 = u64::from(rs2);
             register_file.write(rdindex, (rs1_64 * rs2_64) as u32);
@@ -399,7 +397,8 @@ pub fn exec(
             let rs1: RS1value = register_file.read(rs1index);
             let rs2: RS2value = register_file.read(rs2index);
             if rs2 == 0 {
-                // The spec defines that -1 should be stored. In 32-bit two's complement, u32::MAX is -1
+                // The spec defines that -1 should be stored.
+                // In 32-bit two's complement, u32::MAX is -1
                 register_file.write(rdindex, u32::MAX);
             } else {
                 let result = (rs1 as i32).overflowing_div(rs2 as i32);
