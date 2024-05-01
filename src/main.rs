@@ -20,7 +20,7 @@ mod ui;
 use ui::ViewState;
 
 mod periph;
-use crate::periph::{UartTty, UartBuffered};
+use crate::periph::{UartBuffered, UartTty};
 
 mod instructions;
 
@@ -101,7 +101,7 @@ fn main() -> anyhow::Result<()> {
     let mut cpu = CPU::default(&file_data);
 
     if args.headless {
-        let tty = UartTty{};
+        let tty = UartTty {};
         cpu.memory.periph.push(Box::new(tty));
         loop {
             if !cpu.step() {
@@ -110,7 +110,7 @@ fn main() -> anyhow::Result<()> {
         }
     } else {
         let (tx, rx): (mpsc::Sender<char>, mpsc::Receiver<char>) = mpsc::channel();
-        let buffered = UartBuffered{sink: tx};
+        let buffered = UartBuffered { sink: tx };
         cpu.memory.periph.push(Box::new(buffered));
         return ui_loop(&mut cpu, &rx);
     }

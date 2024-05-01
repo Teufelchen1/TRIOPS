@@ -19,6 +19,8 @@ jobs:
       run: cargo clippy -V
     - name: Clippy
       run: cargo clippy -- -D warnings -W clippy::pedantic
+    - name: Check formatting
+      run: cargo fmt --all --check
     - name: Build
       run: cargo build --verbose
     - name: Run tests
