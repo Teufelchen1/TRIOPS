@@ -3,10 +3,10 @@ use crate::register::Register;
 use std::sync::mpsc;
 
 use ratatui::{
-    layout::{Alignment, Constraint, Direction, Layout},
+    layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Modifier, Style},
     text::{Span, Text},
-    widgets::{Block, BorderType, Borders, Cell, List, ListItem, ListState, Row, Table, Paragraph},
+    widgets::{Block, BorderType, Cell, Clear, List, ListItem, ListState, Row, Table, Paragraph},
     Frame,
 };
 
@@ -109,11 +109,10 @@ impl ViewState {
         self.list_state.select(Some(9));
     }
 
-    pub fn ui(&mut self, f: &mut Frame, cpu: &CPU, uart_rx: &mpsc::Receiver<char>) {
+    pub fn ui(&mut self, f: &mut Frame, cpu: &CPU, uart_rx: &mpsc::Receiver<char>, show_help: bool) {
         let size = f.size();
 
-        let block = Block::default()
-            .borders(Borders::ALL)
+        let block = Block::bordered()
             .title("Main")
             .title_alignment(Alignment::Center)
             .border_type(BorderType::Rounded);
@@ -130,8 +129,7 @@ impl ViewState {
             .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
             .split(chunks[1]);
 
-        let instruction_listing = Block::default()
-            .borders(Borders::ALL)
+        let instruction_listing = Block::bordered()
             .title(vec![Span::from("PC:\tInstruction")]);
 
         self.prepare_instruction_list(cpu);
@@ -146,10 +144,9 @@ impl ViewState {
             .highlight_symbol("->");
         f.render_stateful_widget(list, chunks[0], &mut self.list_state);
 
-        let register_file_table = Block::default()
-            .borders(Borders::ALL)
+        let register_file_table = Block::bordered()
             .title(vec![Span::from("Registers")])
-            .title_alignment(Alignment::Right);
+            .title_alignment(Alignment::Left);
 
         self.prepare_register_table(&cpu.register);
         let rows = self.register_table.iter().map(|row| {
@@ -169,10 +166,9 @@ impl ViewState {
         .highlight_symbol(">> ");
         f.render_widget(t, right_chunks[0]);
 
-        let right_block_down = Block::default()
-            .borders(Borders::ALL)
+        let right_block_down = Block::bordered()
             .title(vec![Span::from("I/O")])
-            .title_alignment(Alignment::Right);
+            .title_alignment(Alignment::Left);
 
         if let Ok(msg) = uart_rx.try_recv(){
             self.uart.push(msg);
@@ -181,5 +177,32 @@ impl ViewState {
         let text = Text::from(text);
         let paragraph = Paragraph::new(text).block(right_block_down);
         f.render_widget(paragraph, right_chunks[1]);
+
+        if show_help {
+            let block = Block::bordered().title("Help");
+            let help_message = Paragraph::new("Key shortcuts:\n'h' for help\n's' to step one instruction\n'q' to quit").block(block);
+            let area = centered_rect(60, 20, size);
+            f.render_widget(Clear, area);
+            f.render_widget(help_message, area);
+        }
     }
+}
+
+
+/// From ratatui/examples/popup.rs
+fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
+    let [_, center, _] = Layout::vertical([
+        Constraint::Percentage((100 - percent_y) / 2),
+        Constraint::Percentage(percent_y),
+        Constraint::Percentage((100 - percent_y) / 2),
+    ])
+    .areas(r);
+    let [_, center, _] = Layout::horizontal([
+        Constraint::Percentage((100 - percent_x) / 2),
+        Constraint::Percentage(percent_x),
+        Constraint::Percentage((100 - percent_x) / 2),
+    ])
+    .areas(center);
+
+    center
 }
