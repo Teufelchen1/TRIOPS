@@ -365,7 +365,7 @@ pub fn exec(
         Instruction::MUL(rdindex, rs1index, rs2index) => {
             let rs1: RS1value = register_file.read(rs1index);
             let rs2: RS2value = register_file.read(rs2index);
-            // Rust panics if the result of the multiplication overflows. 
+            // Rust panics if the result of the multiplication overflows.
             // The RISC-V spec doesn't care and just stores the low 32 bits
             // For this reason, the multiplication is done on 64-bit numbers and then typecasted.
             let rs1_64 = u64::from(rs1);
