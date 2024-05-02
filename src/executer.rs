@@ -16,10 +16,6 @@ macro_rules! add_signed {
 }
 
 /// Executes one instruction.
-///
-/// Returns true except after the ebreak instruction.
-/// ebreak is used to indicate that the execution terminated and that the
-/// emulator should quit.
 #[allow(clippy::too_many_lines)]
 pub fn exec(
     register_file: &mut Register,
@@ -27,7 +23,7 @@ pub fn exec(
     instruction: &Instruction,
     zicsr_enabled: bool,
     m_enabled: bool,
-) -> bool {
+) {
     assert!(
         !instruction.is_zicsr() || zicsr_enabled,
         "Zicsr instruction found but zicsr is not enabled."
@@ -306,9 +302,7 @@ pub fn exec(
             register_file.csr.mcause = 11; // Environment call from M-Mode
             register_file.pc = register_file.csr.mtvec;
         }
-        Instruction::EBREAK() => {
-            return false;
-        }
+        Instruction::EBREAK() => { /* Nop */ }
         Instruction::MRET() => {
             register_file.pc = register_file.csr.mepc;
         }
@@ -435,5 +429,4 @@ pub fn exec(
         }
         _ => todo!(),
     }
-    true
 }

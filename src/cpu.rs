@@ -93,8 +93,11 @@ impl CPU {
         instruction_list
     }
 
+    /// Returns true for all instructions except when executing ebreak.
+    /// ebreak is used to signaling the termination of the programm.
     pub fn step(&mut self) -> bool {
         let (_, inst) = self.current_instruction();
-        exec(&mut self.register, &mut self.memory, &inst, true, true)
+        exec(&mut self.register, &mut self.memory, &inst, true, true);
+        !matches!(inst, Instruction::EBREAK())
     }
 }
