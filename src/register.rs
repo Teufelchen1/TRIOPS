@@ -189,7 +189,7 @@ impl Register {
 
     pub fn to_string(&self, index: Rindex) -> String {
         format!(
-            "{:}: 0x{:08X}({:})",
+            "{:>4}: 0x{:08X} / {:>10}",
             index_to_name(index),
             self.regs[index],
             self.regs[index] as i32

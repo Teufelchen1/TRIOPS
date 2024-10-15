@@ -135,7 +135,7 @@ impl ViewState {
             .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
             .split(chunks[1]);
 
-        let instruction_listing = Block::bordered().title(vec![Span::from("PC:\tInstruction")]);
+        let instruction_listing = Block::bordered().title(vec![Span::from("PC:   Instruction")]);
 
         self.prepare_instruction_list(cpu);
         let items: Vec<ListItem> = self
@@ -156,7 +156,7 @@ impl ViewState {
         self.prepare_register_table(&cpu.register);
         let rows = self.register_table.iter().map(|row| {
             let cells = row.iter().map(|c| Cell::from(c.as_str()));
-            Row::new(cells).height(1).bottom_margin(1)
+            Row::new(cells).height(1).bottom_margin(0)
         });
         let t = Table::new(
             rows,
@@ -167,8 +167,7 @@ impl ViewState {
                 Constraint::Percentage(25),
             ],
         )
-        .block(register_file_table)
-        .highlight_symbol(">> ");
+        .block(register_file_table);
         f.render_widget(t, right_chunks[0]);
 
         let right_block_down = Block::bordered()
