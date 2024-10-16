@@ -2,7 +2,7 @@ use crate::decoder::{Immediate, RDindex, RS1index, RS2index};
 use crate::register::index_to_name;
 
 #[allow(dead_code)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Instruction {
     /* RV32I */
     LUI(RDindex, Immediate),

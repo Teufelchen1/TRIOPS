@@ -80,6 +80,46 @@ impl ViewState {
         }
     }
 
+    fn instruction_log_block(log: Rect, cpu: &CPU) -> Paragraph {
+        let log_height = log.height as usize;
+        let last_inst = cpu.last_n_instructions(log_height - 2);
+        let mut last_instruction_list: String = String::new();
+        for _ in last_inst.len()..log_height - 2 {
+            last_instruction_list.push('\n');
+        }
+        for temp_last_inst in last_inst {
+            match temp_last_inst {
+                Some((addr, cur_inst)) => {
+                    last_instruction_list
+                        .push_str(format!("0x{:08X}: {:}\n", addr, cur_inst.print()).as_str());
+                }
+                None => last_instruction_list.push('\n'),
+            }
+        }
+        let text = { Text::from(last_instruction_list) };
+        Paragraph::new(text).block(Block::bordered().title(vec![Span::from("Last Instructions")]))
+    }
+
+    fn next_instruction_block(next: Rect, cpu: &CPU) -> Paragraph {
+        let next_height = next.height as usize;
+        let mut next_inst = cpu.next_n_instructions(next_height - 1);
+        let _ = next_inst.remove(0);
+        let mut instruction_list: String = String::new();
+        for (addr, inst) in next_inst {
+            match inst {
+                Ok(cur_inst) => {
+                    instruction_list
+                        .push_str(format!("0x{:08X}: {:}\n", addr, cur_inst.print()).as_str());
+                }
+                Err(hex) => {
+                    instruction_list.push_str(format!("0x{addr:08X}: {hex:08X}\n").as_str());
+                }
+            }
+        }
+        let text = { Text::from(instruction_list) };
+        Paragraph::new(text).block(Block::bordered().title(vec![Span::from("Next Instructions")]))
+    }
+
     pub fn ui(
         &mut self,
         f: &mut Frame,
@@ -119,9 +159,7 @@ impl ViewState {
             .split(chunks[0]);
 
         let log = left_chunks[0];
-        let text = { Text::from("Todo!") };
-        let paragraph = Paragraph::new(text)
-            .block(Block::bordered().title(vec![Span::from("Last Instructions")]));
+        let paragraph = ViewState::instruction_log_block(log, cpu);
         f.render_widget(paragraph, log);
 
         let current = left_chunks[1];
@@ -134,23 +172,7 @@ impl ViewState {
         f.render_widget(paragraph, current);
 
         let next = left_chunks[2];
-        let mut next_inst = cpu.next_n_instructions(11);
-        let _ = next_inst.remove(0);
-        let mut instruction_list: String = String::new();
-        for (addr, inst) in next_inst {
-            match inst {
-                Ok(cur_inst) => {
-                    instruction_list
-                        .push_str(format!("0x{:08X}: {:}\n", addr, cur_inst.print()).as_str());
-                }
-                Err(hex) => {
-                    instruction_list.push_str(format!("0x{addr:08X}: {hex:08X}\n").as_str());
-                }
-            }
-        }
-        let text = { Text::from(instruction_list) };
-        let paragraph = Paragraph::new(text)
-            .block(Block::bordered().title(vec![Span::from("Next Instructions")]));
+        let paragraph = ViewState::next_instruction_block(next, cpu);
         f.render_widget(paragraph, next);
 
         let register_file_table = Block::bordered()
