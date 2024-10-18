@@ -4,16 +4,13 @@ use std::sync::mpsc;
 
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
-    style::{Modifier, Style},
     text::{Span, Text},
-    widgets::{Block, BorderType, Cell, Clear, List, ListItem, ListState, Paragraph, Row, Table},
+    widgets::{Block, BorderType, Cell, Clear, Paragraph, Row, Table},
     Frame,
 };
 
 pub struct ViewState {
     register_table: Vec<Vec<String>>,
-    list_state: ListState,
-    instruction_list: Vec<String>,
     uart: String,
 }
 
@@ -70,8 +67,6 @@ impl ViewState {
                     "x3: 0x00000000".to_string(),
                 ],
             ],
-            instruction_list: vec!["0x00000000: NOP".to_string(); 20],
-            list_state: ListState::default(),
             uart: String::new(),
         }
     }
@@ -85,28 +80,44 @@ impl ViewState {
         }
     }
 
-    fn prepare_instruction_list(&mut self, cpu: &CPU) {
-        self.instruction_list
-            .truncate(self.instruction_list.len() / 2);
+    fn instruction_log_block(log: Rect, cpu: &CPU) -> Paragraph {
+        let log_height = log.height as usize;
+        let last_inst = cpu.last_n_instructions(log_height - 2);
+        let mut last_instruction_list: String = String::new();
+        for _ in last_inst.len()..log_height - 2 {
+            last_instruction_list.push('\n');
+        }
+        for temp_last_inst in last_inst {
+            match temp_last_inst {
+                Some((addr, cur_inst)) => {
+                    last_instruction_list
+                        .push_str(format!("0x{:08X}: {:}\n", addr, cur_inst.print()).as_str());
+                }
+                None => last_instruction_list.push('\n'),
+            }
+        }
+        let text = { Text::from(last_instruction_list) };
+        Paragraph::new(text).block(Block::bordered().title(vec![Span::from("Last Instructions")]))
+    }
 
-        let next_inst = cpu.next_n_instructions(11);
+    fn next_instruction_block(next: Rect, cpu: &CPU) -> Paragraph {
+        let next_height = next.height as usize;
+        let mut next_inst = cpu.next_n_instructions(next_height - 1);
+        let _ = next_inst.remove(0);
+        let mut instruction_list: String = String::new();
         for (addr, inst) in next_inst {
             match inst {
                 Ok(cur_inst) => {
-                    self.instruction_list
-                        .push(format!("0x{:08X}: {:}", addr, cur_inst.print()));
+                    instruction_list
+                        .push_str(format!("0x{:08X}: {:}\n", addr, cur_inst.print()).as_str());
                 }
                 Err(hex) => {
-                    self.instruction_list
-                        .push(format!("0x{addr:08X}: {hex:08X}"));
+                    instruction_list.push_str(format!("0x{addr:08X}: {hex:08X}\n").as_str());
                 }
             }
         }
-
-        while self.instruction_list.len() > 20 {
-            self.instruction_list.remove(0);
-        }
-        self.list_state.select(Some(9));
+        let text = { Text::from(instruction_list) };
+        Paragraph::new(text).block(Block::bordered().title(vec![Span::from("Next Instructions")]))
     }
 
     pub fn ui(
@@ -135,19 +146,34 @@ impl ViewState {
             .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
             .split(chunks[1]);
 
-        let instruction_listing = Block::bordered().title(vec![Span::from("PC:\tInstruction")]);
+        let left_chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints(
+                [
+                    Constraint::Percentage(45),
+                    Constraint::Percentage(10),
+                    Constraint::Percentage(45),
+                ]
+                .as_ref(),
+            )
+            .split(chunks[0]);
 
-        self.prepare_instruction_list(cpu);
-        let items: Vec<ListItem> = self
-            .instruction_list
-            .iter()
-            .map(|i| ListItem::new(i.as_str()))
-            .collect();
-        let list = List::new(items)
-            .block(instruction_listing)
-            .highlight_style(Style::default().add_modifier(Modifier::ITALIC))
-            .highlight_symbol("->");
-        f.render_stateful_widget(list, chunks[0], &mut self.list_state);
+        let log = left_chunks[0];
+        let paragraph = ViewState::instruction_log_block(log, cpu);
+        f.render_widget(paragraph, log);
+
+        let current = left_chunks[1];
+        let text = {
+            let (addr, inst) = cpu.current_instruction();
+            Text::from(format!("0x{:08X}: {:}", addr, inst.print()))
+        };
+        let paragraph = Paragraph::new(text)
+            .block(Block::bordered().title(vec![Span::from("Current Instruction")]));
+        f.render_widget(paragraph, current);
+
+        let next = left_chunks[2];
+        let paragraph = ViewState::next_instruction_block(next, cpu);
+        f.render_widget(paragraph, next);
 
         let register_file_table = Block::bordered()
             .title(vec![Span::from("Registers")])
@@ -156,7 +182,7 @@ impl ViewState {
         self.prepare_register_table(&cpu.register);
         let rows = self.register_table.iter().map(|row| {
             let cells = row.iter().map(|c| Cell::from(c.as_str()));
-            Row::new(cells).height(1).bottom_margin(1)
+            Row::new(cells).height(1).bottom_margin(0)
         });
         let t = Table::new(
             rows,
@@ -167,8 +193,7 @@ impl ViewState {
                 Constraint::Percentage(25),
             ],
         )
-        .block(register_file_table)
-        .highlight_symbol(">> ");
+        .block(register_file_table);
         f.render_widget(t, right_chunks[0]);
 
         let right_block_down = Block::bordered()

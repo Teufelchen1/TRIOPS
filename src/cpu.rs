@@ -15,6 +15,7 @@ use elf::ElfBytes;
 pub struct CPU {
     pub register: Register,
     pub memory: Memory,
+    instruction_log: [Option<(usize, Instruction)>; 20],
 }
 
 impl CPU {
@@ -22,6 +23,10 @@ impl CPU {
         let mut cpu = Self {
             register: Register::default(),
             memory: Memory::default_hifive(),
+            instruction_log: [
+                None, None, None, None, None, None, None, None, None, None, None, None, None, None,
+                None, None, None, None, None, None,
+            ],
         };
 
         let elffile = ElfBytes::<AnyEndian>::minimal_parse(file).unwrap();
@@ -52,14 +57,14 @@ impl CPU {
         decode(self.memory.read_word(addr))
     }
 
-    pub fn current_instruction(&self) -> (u32, Instruction) {
-        let addr = self.register.pc;
-        let inst = self.instruction_at_addr(addr as usize).unwrap();
+    pub fn current_instruction(&self) -> (usize, Instruction) {
+        let addr = self.register.pc as usize;
+        let inst = self.instruction_at_addr(addr).unwrap();
         (addr, inst)
     }
 
     #[allow(dead_code)]
-    pub fn next_instruction(&self) -> (u32, Instruction) {
+    pub fn next_instruction(&self) -> (usize, Instruction) {
         let (cur_addr, cur_inst) = self.current_instruction();
         let addr = {
             if cur_inst.is_compressed() {
@@ -68,7 +73,7 @@ impl CPU {
                 cur_addr + 4
             }
         };
-        let inst = self.instruction_at_addr(addr as usize).unwrap();
+        let inst = self.instruction_at_addr(addr).unwrap();
         (addr, inst)
     }
 
@@ -93,11 +98,25 @@ impl CPU {
         instruction_list
     }
 
+    pub fn _last_instruction(&self) -> &Option<(usize, Instruction)> {
+        self.instruction_log.last().unwrap_or(&None)
+    }
+
+    pub fn last_n_instructions(&self, n: usize) -> &[Option<(usize, Instruction)>] {
+        if n > self.instruction_log.len() {
+            &self.instruction_log
+        } else {
+            &self.instruction_log[self.instruction_log.len() - n..]
+        }
+    }
+
     /// Returns true for all instructions except when executing ebreak.
     /// ebreak is used to signaling the termination of the programm.
     pub fn step(&mut self) -> bool {
-        let (_, inst) = self.current_instruction();
+        let (addr, inst) = self.current_instruction();
         exec(&mut self.register, &mut self.memory, &inst, true, true);
+        self.instruction_log.rotate_left(1);
+        self.instruction_log[self.instruction_log.len() - 1] = Some((addr, inst.clone()));
         !matches!(inst, Instruction::EBREAK())
     }
 }
