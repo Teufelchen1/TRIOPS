@@ -1,3 +1,5 @@
+use std::array;
+
 use crate::instructions::Instruction;
 
 use crate::decoder::decode;
@@ -12,10 +14,12 @@ use elf::abi;
 use elf::endian::AnyEndian;
 use elf::ElfBytes;
 
+const LOG_LENGTH: usize = 20;
+
 pub struct CPU {
     pub register: Register,
     pub memory: Memory,
-    instruction_log: [Option<(usize, Instruction)>; 20],
+    instruction_log: [Option<(usize, Instruction)>; LOG_LENGTH],
 }
 
 impl CPU {
@@ -23,10 +27,7 @@ impl CPU {
         let mut cpu = Self {
             register: Register::default(),
             memory: Memory::default_hifive(),
-            instruction_log: [
-                None, None, None, None, None, None, None, None, None, None, None, None, None, None,
-                None, None, None, None, None, None,
-            ],
+            instruction_log: array::from_fn(|_| None),
         };
 
         let elffile = ElfBytes::<AnyEndian>::minimal_parse(file).unwrap();
@@ -116,7 +117,7 @@ impl CPU {
         let (addr, inst) = self.current_instruction();
         exec(&mut self.register, &mut self.memory, &inst, true, true);
         self.instruction_log.rotate_left(1);
-        self.instruction_log[self.instruction_log.len() - 1] = Some((addr, inst.clone()));
+        self.instruction_log[LOG_LENGTH - 1] = Some((addr, inst.clone()));
         !matches!(inst, Instruction::EBREAK())
     }
 }
