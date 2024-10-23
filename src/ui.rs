@@ -1,72 +1,24 @@
 use crate::cpu::CPU;
 use crate::register::Register;
+use std::array;
 use std::sync::mpsc;
 
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     text::{Span, Text},
-    widgets::{Block, BorderType, Cell, Clear, Paragraph, Row, Table},
+    widgets::{Block, Cell, Clear, Paragraph, Row, Table},
     Frame,
 };
 
 pub struct ViewState {
-    register_table: Vec<Vec<String>>,
+    register_table: [[String; 4]; 8],
     uart: String,
 }
 
 impl ViewState {
     pub fn new() -> Self {
         ViewState {
-            register_table: vec![
-                vec![
-                    "x0: 0x00000000".to_string(),
-                    "x1: 0x00000000".to_string(),
-                    "x2: 0x00000000".to_string(),
-                    "x3: 0x00000000".to_string(),
-                ],
-                vec![
-                    "x0: 0x00000000".to_string(),
-                    "x1: 0x00000000".to_string(),
-                    "x2: 0x00000000".to_string(),
-                    "x3: 0x00000000".to_string(),
-                ],
-                vec![
-                    "x0: 0x00000000".to_string(),
-                    "x1: 0x00000000".to_string(),
-                    "x2: 0x00000000".to_string(),
-                    "x3: 0x00000000".to_string(),
-                ],
-                vec![
-                    "x0: 0x00000000".to_string(),
-                    "x1: 0x00000000".to_string(),
-                    "x2: 0x00000000".to_string(),
-                    "x3: 0x00000000".to_string(),
-                ],
-                vec![
-                    "x0: 0x00000000".to_string(),
-                    "x1: 0x00000000".to_string(),
-                    "x2: 0x00000000".to_string(),
-                    "x3: 0x00000000".to_string(),
-                ],
-                vec![
-                    "x0: 0x00000000".to_string(),
-                    "x1: 0x00000000".to_string(),
-                    "x2: 0x00000000".to_string(),
-                    "x3: 0x00000000".to_string(),
-                ],
-                vec![
-                    "x0: 0x00000000".to_string(),
-                    "x1: 0x00000000".to_string(),
-                    "x2: 0x00000000".to_string(),
-                    "x3: 0x00000000".to_string(),
-                ],
-                vec![
-                    "x0: 0x00000000".to_string(),
-                    "x1: 0x00000000".to_string(),
-                    "x2: 0x00000000".to_string(),
-                    "x3: 0x00000000".to_string(),
-                ],
-            ],
+            register_table: array::from_fn(|_| array::from_fn(|_| String::new())),
             uart: String::new(),
         }
     }
@@ -129,17 +81,10 @@ impl ViewState {
     ) {
         let size = f.size();
 
-        let block = Block::bordered()
-            .title("Main")
-            .title_alignment(Alignment::Center)
-            .border_type(BorderType::Rounded);
-        f.render_widget(block, size);
-
         let chunks = Layout::default()
             .direction(Direction::Horizontal)
-            .margin(1)
             .constraints([Constraint::Percentage(25), Constraint::Percentage(75)].as_ref())
-            .split(f.size());
+            .split(size);
 
         let right_chunks = Layout::default()
             .direction(Direction::Vertical)
@@ -150,9 +95,9 @@ impl ViewState {
             .direction(Direction::Vertical)
             .constraints(
                 [
-                    Constraint::Percentage(45),
-                    Constraint::Percentage(10),
-                    Constraint::Percentage(45),
+                    Constraint::Fill(1),
+                    Constraint::Length(3),
+                    Constraint::Fill(1),
                 ]
                 .as_ref(),
             )
