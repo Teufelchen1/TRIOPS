@@ -1,8 +1,7 @@
-#define IO_ADDR (0x10000000)
-#define STRING "Hello world!\n"
+#define IO_ADDR (0x10013000)
 
 void main(void);
-void print(char *str, unsigned int len);
+void print(char *str);
 
 __asm__(
     ".globl _start\n"
@@ -13,21 +12,15 @@ __asm__(
 );
 
 void main(void) {
-    const char * str = STRING;
-    unsigned int k = 20;
-    for(unsigned int i = 0; i < sizeof(STRING); i++) {
-        k += 2;
-        *(char *)IO_ADDR = str[i];
-    }
-    print("WoW!\n", 5);
-    if(k > 40)
-        __asm__("EBREAK");
-    else
-        __asm__("ECALL");
+    print("Hello world!\n");
+    print("WoW!\n");
+
+    /* Signal termination */
+    __asm__("EBREAK");
 }
 
-void print(char *str, unsigned int len) {
-    for(unsigned int i = 0; i < len; i++) {
+void print(char *str) {
+    for(unsigned int i = 0; str[i] != 0; i++) {
         *(char *)IO_ADDR = str[i];
     }
 }
