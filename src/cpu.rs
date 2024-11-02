@@ -16,13 +16,13 @@ use elf::ElfBytes;
 
 const LOG_LENGTH: usize = 20;
 
-pub struct CPU {
+pub struct CPU<'trait_periph> {
     pub register: Register,
-    pub memory: Memory,
+    pub memory: Memory<'trait_periph>,
     instruction_log: [Option<(usize, Instruction)>; LOG_LENGTH],
 }
 
-impl CPU {
+impl CPU<'_> {
     pub fn default(file: &[u8]) -> Self {
         let mut cpu = Self {
             register: Register::default(),

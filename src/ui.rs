@@ -32,7 +32,7 @@ impl ViewState {
         }
     }
 
-    fn instruction_log_block(log: Rect, cpu: &CPU) -> Paragraph {
+    fn instruction_log_block<'a>(log: Rect, cpu: &'a CPU<'a>) -> Paragraph<'a> {
         let log_height = log.height as usize;
         let last_inst = cpu.last_n_instructions(log_height - 2);
         let mut last_instruction_list: String = String::new();
@@ -52,7 +52,7 @@ impl ViewState {
         Paragraph::new(text).block(Block::bordered().title(vec![Span::from("Last Instructions")]))
     }
 
-    fn next_instruction_block(next: Rect, cpu: &CPU) -> Paragraph {
+    fn next_instruction_block<'a>(next: Rect, cpu: &'a CPU<'a>) -> Paragraph<'a> {
         let next_height = next.height as usize;
         let mut next_inst = cpu.next_n_instructions(next_height - 1);
         let _ = next_inst.remove(0);
@@ -72,10 +72,10 @@ impl ViewState {
         Paragraph::new(text).block(Block::bordered().title(vec![Span::from("Next Instructions")]))
     }
 
-    pub fn ui(
+    pub fn ui<'a>(
         &mut self,
         f: &mut Frame,
-        cpu: &CPU,
+        cpu: &'a CPU<'a>,
         uart_rx: &mpsc::Receiver<char>,
         show_help: bool,
     ) {

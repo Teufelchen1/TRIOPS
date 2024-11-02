@@ -1,34 +1,34 @@
 use crate::periph::MmapPeripheral;
 
-pub struct Memory {
-    pub io_base: usize,
-    pub io_limit: usize,
+pub struct Memory<'trait_periph> {
+    pub uart_base: usize,
+    pub uart: Option<&'trait_periph dyn MmapPeripheral>,
+    pub uart_limit: usize,
     pub ram_base: usize,
     pub ram_limit: usize,
     pub ram: Vec<u8>,
     pub rom_base: usize,
     pub rom_limit: usize,
     pub rom: Vec<u8>,
-    pub periph: Vec<Box<dyn MmapPeripheral>>,
 }
 
-impl Memory {
+impl Memory<'_> {
     pub fn default_hifive() -> Self {
         Self {
-            io_base: 0x0000_0000,
-            io_limit: 0x2000_0000,
+            uart_base: 0x1001_3000,
+            uart: None,
+            uart_limit: 0x1001_301C,
             rom_base: 0x2000_0000,
             rom_limit: 0x4000_0000,
             rom: vec![0; 0x2000_0000],
             ram_base: 0x8000_0000,
             ram_limit: 0x8000_4000,
             ram: vec![0; 0x4000],
-            periph: Vec::<Box<dyn MmapPeripheral>>::new(),
         }
     }
 
-    pub fn is_io(&self, addr: usize) -> bool {
-        self.io_base <= addr && addr < self.io_limit
+    pub fn is_uart(&self, addr: usize) -> bool {
+        self.uart_base <= addr && addr < self.uart_limit
     }
 
     pub fn is_ram(&self, addr: usize) -> bool {
@@ -48,12 +48,11 @@ impl Memory {
             let index = addr - self.rom_base;
             return u32::from(self.rom[index]);
         }
-        if self.is_io(addr) {
-            for periph in &self.periph {
-                if periph.addr_base() <= addr && addr < periph.addr_limit() {
-                    return u32::from(periph.read(addr - periph.addr_base()));
-                }
+        if self.is_uart(addr) {
+            if let Some(uart) = self.uart {
+                return u32::from(uart.read(addr - self.uart_base));
             }
+            panic!("Memory read from non existing uart: 0x{addr:X}");
         }
         panic!("Memory read outside memory map: 0x{addr:X}");
     }
@@ -69,12 +68,11 @@ impl Memory {
             self.ram[index] = (value & 0xFF) as u8;
             return;
         }
-        if self.is_io(addr) {
-            for periph in &self.periph {
-                if periph.addr_base() <= addr && addr < periph.addr_limit() {
-                    return periph.write(addr - periph.addr_base(), (value & 0xFF) as u8);
-                }
+        if self.is_uart(addr) {
+            if let Some(uart) = self.uart {
+                return uart.write(addr - self.uart_base, (value & 0xFF) as u8);
             }
+            panic!("Memory write to non existing uart: 0x{addr:X}");
         }
         panic!("Memory write outside memory map: 0x{addr:X}");
     }

@@ -100,19 +100,25 @@ fn main() -> anyhow::Result<()> {
 
     let mut cpu = CPU::default(&file_data);
 
-    if args.headless {
-        let tty = UartTty {};
-        cpu.memory.periph.push(Box::new(tty));
-        loop {
-            if !cpu.step() {
-                break;
-            }
+    // Not headless? Start TUI!
+    if !args.headless {
+        let (tx, tui_reader): (mpsc::Sender<char>, mpsc::Receiver<char>) = mpsc::channel();
+        let (_tui_writer, rx): (mpsc::Sender<char>, mpsc::Receiver<char>) = mpsc::channel();
+        let buffered = UartBuffered {
+            writer: tx,
+            reader: rx,
+        };
+        cpu.memory.uart = Some(&buffered);
+        // Terminated TUI also terminates main()
+        return ui_loop(&mut cpu, &tui_reader);
+    }
+
+    let tty = UartTty {};
+    cpu.memory.uart = Some(&tty);
+    loop {
+        if !cpu.step() {
+            break;
         }
-    } else {
-        let (tx, rx): (mpsc::Sender<char>, mpsc::Receiver<char>) = mpsc::channel();
-        let buffered = UartBuffered { sink: tx };
-        cpu.memory.periph.push(Box::new(buffered));
-        return ui_loop(&mut cpu, &rx);
     }
 
     if args.testing {
