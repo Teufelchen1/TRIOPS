@@ -2,22 +2,12 @@
 #![allow(clippy::cast_possible_wrap)]
 #![allow(clippy::cast_possible_truncation)]
 #![allow(clippy::cast_sign_loss)]
-
-use std::io;
 use std::sync::mpsc;
 
 use clap::Parser;
 
-use ratatui::{backend::CrosstermBackend, Terminal};
-
-use crossterm::{
-    event::{self, DisableMouseCapture, Event, KeyCode},
-    execute,
-    terminal::{disable_raw_mode, enable_raw_mode, LeaveAlternateScreen},
-};
-
 mod ui;
-use ui::ViewState;
+use ui::tui_loop;
 
 mod periph;
 use crate::periph::{UartBuffered, UartTty};
@@ -49,49 +39,6 @@ struct Args {
     testing: bool,
 }
 
-fn ui_loop(cpu: &mut CPU, uart_rx: &mpsc::Receiver<char>) -> anyhow::Result<()> {
-    enable_raw_mode()?;
-    let stdout = io::stdout();
-    let backend = CrosstermBackend::new(stdout);
-    let mut terminal = Terminal::new(backend)?;
-    let _ = terminal.clear();
-
-    let mut ui = ViewState::new();
-    let mut show_help = true;
-
-    loop {
-        terminal.draw(|f| ui.ui(f, cpu, uart_rx, show_help))?;
-
-        if let Event::Key(key) = event::read()? {
-            match key.code {
-                KeyCode::Char('h') => {
-                    show_help = !show_help;
-                }
-                KeyCode::Char('q') => {
-                    break;
-                }
-                KeyCode::Char('s') => {
-                    if !cpu.step() {
-                        break;
-                    }
-                }
-                _ => todo!(),
-            }
-        }
-    }
-
-    let _ = terminal.clear();
-
-    disable_raw_mode()?;
-    execute!(
-        terminal.backend_mut(),
-        LeaveAlternateScreen,
-        DisableMouseCapture
-    )?;
-    terminal.show_cursor()?;
-    Ok(())
-}
-
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
 
@@ -103,14 +50,14 @@ fn main() -> anyhow::Result<()> {
     // Not headless? Start TUI!
     if !args.headless {
         let (tx, tui_reader): (mpsc::Sender<char>, mpsc::Receiver<char>) = mpsc::channel();
-        let (_tui_writer, rx): (mpsc::Sender<char>, mpsc::Receiver<char>) = mpsc::channel();
+        let (tui_writer, rx): (mpsc::Sender<char>, mpsc::Receiver<char>) = mpsc::channel();
         let buffered = UartBuffered {
             writer: tx,
             reader: rx,
         };
         cpu.memory.uart = Some(&buffered);
         // Terminated TUI also terminates main()
-        return ui_loop(&mut cpu, &tui_reader);
+        return tui_loop(&mut cpu, &tui_reader, &tui_writer);
     }
 
     let tty = UartTty {};

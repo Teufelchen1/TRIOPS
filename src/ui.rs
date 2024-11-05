@@ -1,7 +1,16 @@
 use crate::cpu::CPU;
 use crate::register::Register;
+use ratatui::{backend::CrosstermBackend, Terminal};
 use std::array;
+use std::io;
 use std::sync::mpsc;
+use std::time::Duration;
+
+use crossterm::{
+    event::{self, DisableMouseCapture, Event, KeyCode},
+    execute,
+    terminal::{disable_raw_mode, enable_raw_mode, LeaveAlternateScreen},
+};
 
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
@@ -78,6 +87,8 @@ impl ViewState {
         cpu: &'a CPU<'a>,
         uart_rx: &mpsc::Receiver<char>,
         show_help: bool,
+        insert_mode: bool,
+        user_input: &String,
     ) {
         let size = f.size();
 
@@ -88,7 +99,14 @@ impl ViewState {
 
         let right_chunks = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([Constraint::Percentage(50), Constraint::Percentage(50)].as_ref())
+            .constraints(
+                [
+                    Constraint::Percentage(45),
+                    Constraint::Percentage(45),
+                    Constraint::Percentage(10),
+                ]
+                .as_ref(),
+            )
             .split(chunks[1]);
 
         let left_chunks = Layout::default()
@@ -153,13 +171,32 @@ impl ViewState {
         let paragraph = Paragraph::new(text).block(right_block_down);
         f.render_widget(paragraph, right_chunks[1]);
 
+        let right_block_bottom = {
+            if insert_mode {
+                Block::bordered()
+                    .title(vec![Span::from("User Input to UART RX [Insert Mode]")])
+                    .title_alignment(Alignment::Left)
+            } else {
+                Block::bordered()
+                    .title(vec![Span::from(
+                        "User Input to UART RX [Not in insert mode, press `i`]",
+                    )])
+                    .title_alignment(Alignment::Left)
+            }
+        };
+
+        let text: &str = &user_input.to_string();
+        let text = Text::from(text);
+        let paragraph = Paragraph::new(text).block(right_block_bottom);
+        f.render_widget(paragraph, right_chunks[2]);
+
         if show_help {
             let block = Block::bordered().title("Help");
             let help_message = Paragraph::new(
-                "Key shortcuts:\n'h' for help\n's' to step one instruction\n'q' to quit",
+                "Key shortcuts:\n'a' to enable auto-step\n'h' for help\n's' to step one instruction\n'q' to quit\n'i' to enter insert mode\n  'ENTER' to send your input to the uart\n  'ESC' to leave the insert mode",
             )
             .block(block);
-            let area = centered_rect(60, 20, size);
+            let area = centered_rect(60, 29, size);
             f.render_widget(Clear, area);
             f.render_widget(help_message, area);
         }
@@ -182,4 +219,84 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
     .areas(center);
 
     center
+}
+
+pub fn tui_loop(
+    cpu: &mut CPU,
+    uart_rx: &mpsc::Receiver<char>,
+    uart_tx: &mpsc::Sender<char>,
+) -> anyhow::Result<()> {
+    enable_raw_mode()?;
+    let stdout = io::stdout();
+    let backend = CrosstermBackend::new(stdout);
+    let mut terminal = Terminal::new(backend)?;
+    let _ = terminal.clear();
+
+    let mut ui = ViewState::new();
+    let mut show_help = true;
+    let mut user_input = String::new();
+    let mut insert_mode = false;
+    let mut auto_step = false;
+
+    loop {
+        terminal.draw(|f| ui.ui(f, cpu, uart_rx, show_help, insert_mode, &user_input))?;
+
+        if event::poll(Duration::from_millis(50))? {
+            if let Event::Key(key) = event::read()? {
+                if insert_mode {
+                    match key.code {
+                        KeyCode::Char(ch) => user_input.push(ch),
+                        KeyCode::Backspace => {
+                            _ = user_input.pop();
+                        }
+                        KeyCode::Enter => {
+                            user_input.push('\n');
+                            for ch in user_input.chars() {
+                                uart_tx.send(ch)?;
+                            }
+                            user_input.clear();
+                        }
+                        KeyCode::Esc => {
+                            insert_mode = false;
+                        }
+                        _ => {}
+                    }
+                } else {
+                    match key.code {
+                        KeyCode::Char('a') => {
+                            auto_step = !auto_step;
+                        }
+                        KeyCode::Char('h') => {
+                            show_help = !show_help;
+                        }
+                        KeyCode::Char('i') => {
+                            insert_mode = true;
+                        }
+                        KeyCode::Char('q') => {
+                            break;
+                        }
+                        KeyCode::Char('s') => {
+                            if !cpu.step() {
+                                break;
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        } else if auto_step && !cpu.step() {
+            break;
+        }
+    }
+
+    let _ = terminal.clear();
+
+    disable_raw_mode()?;
+    execute!(
+        terminal.backend_mut(),
+        LeaveAlternateScreen,
+        DisableMouseCapture
+    )?;
+    terminal.show_cursor()?;
+    Ok(())
 }
