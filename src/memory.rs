@@ -74,7 +74,7 @@ impl Memory<'_> {
             }
             panic!("Memory write to non existing uart: 0x{addr:X}");
         }
-        panic!("Memory write outside memory map: 0x{addr:X}");
+        panic!("Memory write outside writable memory map: 0x{addr:X}");
     }
     pub fn write_halfword(&mut self, index: usize, value: u32) {
         self.write_byte(index, value);

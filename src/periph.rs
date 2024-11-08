@@ -1,3 +1,5 @@
+use std::io;
+use std::io::Read;
 use std::sync::mpsc::{self, TryRecvError};
 
 pub trait MmapPeripheral {
@@ -8,6 +10,13 @@ pub trait MmapPeripheral {
 pub struct UartTty;
 impl MmapPeripheral for UartTty {
     fn read(&self, _offset: usize) -> u8 {
+        let mut buff: [u8; 1] = [0];
+        if let Ok(count) = io::stdin().read(&mut buff) {
+            if count == 0 {
+                return 0;
+            }
+            return buff[0];
+        }
         0
     }
     fn write(&self, _offset: usize, value: u8) {
