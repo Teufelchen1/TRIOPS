@@ -1,4 +1,31 @@
-#define IO_ADDR (0x10013000)
+#define INT_UART0_BASE (0x10013000)
+/* Register offsets */
+#define UART_REG_TXFIFO         0x00
+#define UART_REG_RXFIFO         0x04
+#define UART_REG_TXCTRL         0x08
+#define UART_REG_RXCTRL         0x0c
+#define UART_REG_IE             0x10
+#define UART_REG_IP             0x14
+#define UART_REG_DIV            0x18
+
+/* TXFIFO register */
+#define UART_TXFIFO_FULL        (1 << 31)
+#define UART_RXFIFO_EMPTY       (1 << 31)
+
+/* TXCTRL register */
+#define UART_TXEN               0x1
+#define UART_TXWM(x)            (((x) & 0xffff) << 16)
+
+/* RXCTRL register */
+#define UART_RXEN               0x1
+#define UART_RXWM(x)            (((x) & 0xffff) << 16)
+
+/* IP register */
+#define UART_IP_TXWM            0x1
+#define UART_IP_RXWM            0x2
+
+#define uint32_t unsigned int
+#define _REG32(p, i) (*(volatile uint32_t *)((p) + (i)))
 
 void main(void);
 void puts(char chr);
@@ -13,7 +40,58 @@ __asm__(
     "call main\n"
 );
 
+
+static inline int uart_read(char * byte)
+{
+    uint32_t data = _REG32(INT_UART0_BASE, UART_REG_RXFIFO);
+    if ((data & UART_RXFIFO_EMPTY) != (uint32_t)UART_RXFIFO_EMPTY) {
+        *byte = (data & 0xff);
+        return 1;
+    }
+    return 0;
+}
+
+static void _drain()
+{
+    uint32_t data = _REG32(INT_UART0_BASE, UART_REG_RXFIFO);
+
+    /* Intr cleared automatically when data is read */
+    // while ((data & UART_RXFIFO_EMPTY) != (uint32_t)UART_RXFIFO_EMPTY) {
+    //     data = _REG32(INT_UART0_BASE, UART_REG_RXFIFO);
+    // }
+}
+
+void uart_init()
+{
+    /* Enable TX */
+    _REG32(INT_UART0_BASE, UART_REG_TXCTRL) = UART_TXEN;
+
+    /* avoid trap by emptying RX FIFO */
+    _drain();
+
+    /* enable RX interrupt */
+    _REG32(INT_UART0_BASE, UART_REG_IE) = UART_IP_RXWM;
+
+    /* Enable RX */
+    _REG32(INT_UART0_BASE, UART_REG_RXCTRL) = UART_RXEN;
+}
+
+void uart_write(const char *data, int len)
+{
+    for (int i = 0; i < len; i++) {
+        /* Wait for FIFO to empty */
+        while ((_REG32(INT_UART0_BASE,
+                       UART_REG_TXFIFO) & UART_TXFIFO_FULL)
+               == (uint32_t)UART_TXFIFO_FULL) {}
+
+        /* Write a byte */
+        _REG32(INT_UART0_BASE, UART_REG_TXFIFO) = data[i];
+    }
+}
+
+
 void main(void) {
+    uart_init();
     print("Hello world!\n");
     print("Type CAT for a fun time!\n");
     print("Type $ to exit.\n");
@@ -48,15 +126,17 @@ void main(void) {
 }
 
 void puts(char chr) {
-    *(volatile char *)IO_ADDR = chr;
+    uart_write(&chr, 1);
 }
 
 void print(char *str) {
     for(unsigned int i = 0; str[i] != 0; i++) {
-        puts(str[i]);
+        uart_write(&str[i], 1);
     }
 }
 
 char read() {
-    return *(char *)IO_ADDR;
+    char byte = 0;
+    uart_read(&byte);
+    return byte;
 }

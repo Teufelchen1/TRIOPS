@@ -4,13 +4,14 @@
 #![allow(clippy::cast_sign_loss)]
 use std::sync::mpsc;
 
+use anyhow::anyhow;
 use clap::Parser;
 
 mod ui;
 use ui::tui_loop;
 
 mod periph;
-use crate::periph::{UartBuffered, UartTty};
+use crate::periph::{Uart, UartBuffered, UartTty};
 
 mod instructions;
 
@@ -43,25 +44,29 @@ fn main() -> anyhow::Result<()> {
     let args = Args::parse();
 
     let path = std::path::PathBuf::from(args.file);
-    let file_data = std::fs::read(path).unwrap();
+    let file_data = std::fs::read(&path).unwrap();
 
-    let mut cpu = CPU::default(&file_data);
+    let mut tty = Uart::default(UartTty {});
+    let cpu_res = CPU::default(&file_data, &mut tty);
+    if let Err(err) = cpu_res {
+        println!("Failed to parse provided ELF file ({path:?})");
+        return Err(anyhow!(err));
+    }
+    let mut cpu = cpu_res.unwrap();
 
     // Not headless? Start TUI!
     if !args.headless {
         let (tx, tui_reader): (mpsc::Sender<char>, mpsc::Receiver<char>) = mpsc::channel();
         let (tui_writer, rx): (mpsc::Sender<char>, mpsc::Receiver<char>) = mpsc::channel();
-        let buffered = UartBuffered {
+        let mut buffered = Uart::default(UartBuffered {
             writer: tx,
             reader: rx,
-        };
-        cpu.memory.uart = Some(&buffered);
+        });
+        cpu.memory.uart = &mut buffered;
         // Terminated TUI also terminates main()
         return tui_loop(&mut cpu, &tui_reader, &tui_writer);
     }
 
-    let tty = UartTty {};
-    cpu.memory.uart = Some(&tty);
     loop {
         if !cpu.step() {
             break;

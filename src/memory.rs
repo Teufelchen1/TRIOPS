@@ -2,7 +2,7 @@ use crate::periph::MmapPeripheral;
 
 pub struct Memory<'trait_periph> {
     pub uart_base: usize,
-    pub uart: Option<&'trait_periph dyn MmapPeripheral>,
+    pub uart: &'trait_periph mut dyn MmapPeripheral,
     pub uart_limit: usize,
     pub ram_base: usize,
     pub ram_limit: usize,
@@ -12,11 +12,11 @@ pub struct Memory<'trait_periph> {
     pub rom: Vec<u8>,
 }
 
-impl Memory<'_> {
-    pub fn default_hifive() -> Self {
+impl<'trait_periph> Memory<'trait_periph> {
+    pub fn default_hifive(uart: &'trait_periph mut dyn MmapPeripheral) -> Self {
         Self {
             uart_base: 0x1001_3000,
-            uart: None,
+            uart,
             uart_limit: 0x1001_301C,
             rom_base: 0x2000_0000,
             rom_limit: 0x4000_0000,
@@ -49,10 +49,7 @@ impl Memory<'_> {
             return u32::from(self.rom[index]);
         }
         if self.is_uart(addr) {
-            if let Some(uart) = self.uart {
-                return u32::from(uart.read(addr - self.uart_base));
-            }
-            panic!("Memory read from non existing uart: 0x{addr:X}");
+            return u32::from(self.uart.read(addr - self.uart_base));
         }
         panic!("Memory read outside memory map: 0x{addr:X}");
     }
@@ -69,10 +66,10 @@ impl Memory<'_> {
             return;
         }
         if self.is_uart(addr) {
-            if let Some(uart) = self.uart {
-                return uart.write(addr - self.uart_base, (value & 0xFF) as u8);
-            }
-            panic!("Memory write to non existing uart: 0x{addr:X}");
+            return self.uart.write(addr - self.uart_base, (value & 0xFF) as u8);
+            // if let Some(uart) = self.uart {
+            //     return uart.write(addr - self.uart_base, (value & 0xFF) as u8);
+            // }
         }
         panic!("Memory write outside writable memory map: 0x{addr:X}");
     }

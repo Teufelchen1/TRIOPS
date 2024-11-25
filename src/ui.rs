@@ -41,7 +41,7 @@ impl ViewState {
         }
     }
 
-    fn instruction_log_block<'a>(log: Rect, cpu: &'a CPU<'a>) -> Paragraph<'a> {
+    fn instruction_log_block<'a>(log: Rect, cpu: &CPU<'a>) -> Paragraph<'a> {
         let log_height = log.height as usize;
         let last_inst = cpu.last_n_instructions(log_height - 2);
         let mut last_instruction_list: String = String::new();
@@ -61,7 +61,7 @@ impl ViewState {
         Paragraph::new(text).block(Block::bordered().title(vec![Span::from("Last Instructions")]))
     }
 
-    fn next_instruction_block<'a>(next: Rect, cpu: &'a CPU<'a>) -> Paragraph<'a> {
+    fn next_instruction_block<'a>(next: Rect, cpu: &CPU<'a>) -> Paragraph<'a> {
         let next_height = next.height as usize;
         let mut next_inst = cpu.next_n_instructions(next_height - 1);
         let _ = next_inst.remove(0);
@@ -81,10 +81,10 @@ impl ViewState {
         Paragraph::new(text).block(Block::bordered().title(vec![Span::from("Next Instructions")]))
     }
 
-    pub fn ui<'a>(
+    pub fn ui(
         &mut self,
         f: &mut Frame,
-        cpu: &'a CPU<'a>,
+        cpu: &CPU<'_>,
         uart_rx: &mpsc::Receiver<char>,
         show_help: bool,
         insert_mode: bool,
@@ -221,8 +221,8 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
     center
 }
 
-pub fn tui_loop(
-    cpu: &mut CPU,
+pub fn tui_loop<'a>(
+    cpu: &'a mut CPU<'a>,
     uart_rx: &mpsc::Receiver<char>,
     uart_tx: &mpsc::Sender<char>,
 ) -> anyhow::Result<()> {
@@ -241,7 +241,7 @@ pub fn tui_loop(
     loop {
         terminal.draw(|f| ui.ui(f, cpu, uart_rx, show_help, insert_mode, &user_input))?;
 
-        if event::poll(Duration::from_millis(50))? {
+        if event::poll(Duration::from_millis(20))? {
             if let Event::Key(key) = event::read()? {
                 if insert_mode {
                     match key.code {

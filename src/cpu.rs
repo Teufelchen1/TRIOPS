@@ -8,11 +8,14 @@ use crate::executer::exec;
 
 use crate::memory::Memory;
 
+use crate::periph::MmapPeripheral;
+
 use crate::register::Register;
 
 use elf::abi;
 use elf::endian::AnyEndian;
 use elf::ElfBytes;
+use elf::ParseError;
 
 const LOG_LENGTH: usize = 20;
 
@@ -22,15 +25,18 @@ pub struct CPU<'trait_periph> {
     instruction_log: [Option<(usize, Instruction)>; LOG_LENGTH],
 }
 
-impl CPU<'_> {
-    pub fn default(file: &[u8]) -> Self {
+impl<'trait_periph> CPU<'trait_periph> {
+    pub fn default(
+        file: &[u8],
+        uart: &'trait_periph mut dyn MmapPeripheral,
+    ) -> Result<Self, ParseError> {
         let mut cpu = Self {
             register: Register::default(),
-            memory: Memory::default_hifive(),
+            memory: Memory::default_hifive(uart),
             instruction_log: array::from_fn(|_| None),
         };
 
-        let elffile = ElfBytes::<AnyEndian>::minimal_parse(file).unwrap();
+        let elffile = ElfBytes::<AnyEndian>::minimal_parse(file)?;
 
         for phdr in elffile.segments().unwrap() {
             if phdr.p_type == abi::PT_LOAD {
@@ -51,7 +57,7 @@ impl CPU<'_> {
 
         cpu.register.pc = u32::try_from(elffile.ehdr.e_entry).unwrap();
 
-        cpu
+        Ok(cpu)
     }
 
     pub fn instruction_at_addr(&self, addr: usize) -> Result<Instruction, &'static str> {
