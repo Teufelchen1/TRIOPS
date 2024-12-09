@@ -4,7 +4,6 @@
 #![allow(clippy::cast_sign_loss)]
 use std::sync::mpsc;
 
-use anyhow::anyhow;
 use clap::Parser;
 
 mod ui;
@@ -40,19 +39,14 @@ struct Args {
     testing: bool,
 }
 
-fn main() -> anyhow::Result<()> {
+fn main() {
     let args = Args::parse();
 
     let path = std::path::PathBuf::from(args.file);
-    let file_data = std::fs::read(&path).unwrap();
+    let file_data = std::fs::read(&path).unwrap_or_else(|_| panic!("Could not read file {path:?}"));
 
     let mut tty = Uart::default(UartTty {});
-    let cpu_res = CPU::default(&file_data, &mut tty);
-    if let Err(err) = cpu_res {
-        println!("Failed to parse provided ELF file ({path:?})");
-        return Err(anyhow!(err));
-    }
-    let mut cpu = cpu_res.unwrap();
+    let mut cpu = CPU::default(&file_data, &mut tty);
 
     // Not headless? Start TUI!
     if !args.headless {
@@ -64,11 +58,22 @@ fn main() -> anyhow::Result<()> {
         });
         cpu.memory.uart = &mut buffered;
         // Terminated TUI also terminates main()
-        return tui_loop(&mut cpu, &tui_reader, &tui_writer);
+        tui_loop(&mut cpu, &tui_reader, &tui_writer).expect("Well, your TUI crashed");
+        return;
     }
 
     loop {
-        if !cpu.step() {
+        let ok = match cpu.step() {
+            Ok(ok) => ok,
+            Err(err) => panic!(
+                "{}",
+                &format!(
+                    "Failed to step at address 0x{:X}: {:}",
+                    cpu.register.pc, err
+                )
+            ),
+        };
+        if !ok {
             break;
         }
     }
@@ -78,10 +83,8 @@ fn main() -> anyhow::Result<()> {
         if reg != 93 {
             println!("Test failed: {:}", cpu.register.read(10));
         }
-        anyhow::ensure!(cpu.register.read(17) == 93, "Test failed");
+        assert!(cpu.register.read(17) == 93, "Test failed");
     } else {
         println!("Done!");
     }
-
-    Ok(())
 }

@@ -127,8 +127,11 @@ impl ViewState {
 
         let current = left_chunks[1];
         let text = {
-            let (addr, inst) = cpu.current_instruction();
-            Text::from(format!("0x{:08X}: {:}", addr, inst.print()))
+            if let Ok((addr, inst)) = cpu.current_instruction() {
+                Text::from(format!("0x{:08X}: {:}", addr, inst.print()))
+            } else {
+                Text::from("Failed to parse.")
+            }
         };
         let paragraph = Paragraph::new(text)
             .block(Block::bordered().title(vec![Span::from("Current Instruction")]));
@@ -276,7 +279,17 @@ pub fn tui_loop<'a>(
                             break;
                         }
                         KeyCode::Char('s') => {
-                            if !cpu.step() {
+                            let ok = match cpu.step() {
+                                Ok(ok) => ok,
+                                Err(err) => panic!(
+                                    "{}",
+                                    &format!(
+                                        "Failed to step at address 0x{:X}: {:}",
+                                        cpu.register.pc, err
+                                    )
+                                ),
+                            };
+                            if !ok {
                                 break;
                             }
                         }
@@ -284,8 +297,20 @@ pub fn tui_loop<'a>(
                     }
                 }
             }
-        } else if auto_step && !cpu.step() {
-            break;
+        } else if auto_step {
+            let ok = match cpu.step() {
+                Ok(ok) => ok,
+                Err(err) => panic!(
+                    "{}",
+                    &format!(
+                        "Failed to step at address 0x{:X}: {:}",
+                        cpu.register.pc, err
+                    )
+                ),
+            };
+            if !ok {
+                break;
+            }
         }
     }
 
