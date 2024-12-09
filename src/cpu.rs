@@ -110,8 +110,8 @@ impl<'trait_periph> CPU<'trait_periph> {
         instruction_list
     }
 
-    pub fn _last_instruction(&self) -> &Option<(usize, Instruction)> {
-        self.instruction_log.last().unwrap_or(&None)
+    pub fn _last_instruction(&self) -> Option<&(usize, Instruction)> {
+        self.instruction_log.last().unwrap_or(&None).as_ref()
     }
 
     pub fn last_n_instructions(&self, n: usize) -> &[Option<(usize, Instruction)>] {
