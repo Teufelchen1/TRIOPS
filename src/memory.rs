@@ -67,9 +67,6 @@ impl<'trait_periph> Memory<'trait_periph> {
         }
         if self.is_uart(addr) {
             return self.uart.write(addr - self.uart_base, (value & 0xFF) as u8);
-            // if let Some(uart) = self.uart {
-            //     return uart.write(addr - self.uart_base, (value & 0xFF) as u8);
-            // }
         }
         panic!("Memory write outside writable memory map: 0x{addr:X}");
     }

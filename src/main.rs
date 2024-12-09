@@ -45,22 +45,20 @@ fn main() {
     let path = std::path::PathBuf::from(args.file);
     let file_data = std::fs::read(&path).unwrap_or_else(|_| panic!("Could not read file {path:?}"));
 
-    let mut tty = Uart::default(UartTty {});
-    let mut cpu = CPU::default(&file_data, &mut tty);
-
     // Not headless? Start TUI!
     if !args.headless {
         let (tx, tui_reader): (mpsc::Sender<char>, mpsc::Receiver<char>) = mpsc::channel();
         let (tui_writer, rx): (mpsc::Sender<char>, mpsc::Receiver<char>) = mpsc::channel();
-        let mut buffered = Uart::default(UartBuffered {
-            writer: tx,
-            reader: rx,
-        });
-        cpu.memory.uart = &mut buffered;
+        let mut buffered = Uart::default(UartBuffered::new(rx, tx));
+        let mut cpu = CPU::default(&file_data, &mut buffered);
+
         // Terminated TUI also terminates main()
         tui_loop(&mut cpu, &tui_reader, &tui_writer).expect("Well, your TUI crashed");
         return;
     }
+
+    let mut tty = Uart::default(UartTty::new());
+    let mut cpu = CPU::default(&file_data, &mut tty);
 
     loop {
         let ok = match cpu.step() {

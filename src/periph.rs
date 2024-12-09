@@ -1,6 +1,8 @@
 use std::io;
 use std::io::Read;
 use std::sync::mpsc::{self, TryRecvError};
+use std::sync::{Arc, Mutex};
+use std::thread;
 
 pub trait MmapPeripheral {
     fn read(&self, offset: usize) -> u8;
@@ -8,6 +10,7 @@ pub trait MmapPeripheral {
 }
 
 pub trait Backend {
+    fn has_data(&self) -> bool;
     fn read_cb(&self) -> Option<u8>;
     fn write_cb(&self, value: u8);
 }
@@ -15,7 +18,6 @@ pub trait Backend {
 #[allow(clippy::struct_excessive_bools)]
 pub struct Uart<B> {
     tx_fifo_full: bool,
-    rx_fifo_empty: bool,
     tx_enable: bool,
     rx_enable: bool,
     txcnt: u8,
@@ -30,7 +32,6 @@ impl<B> Uart<B> {
     pub fn default(backend: B) -> Self {
         Uart {
             tx_fifo_full: false,
-            rx_fifo_empty: true,
             tx_enable: false,
             rx_enable: false,
             txcnt: 0,
@@ -68,7 +69,7 @@ impl<B: Backend> MmapPeripheral for Uart<B> {
             0x05..=0x06 => 0,
             0x07 => {
                 // .31 rxdata FIFO empty bit
-                if self.rx_fifo_empty {
+                if !self.backend.has_data() {
                     return 0b1000_0000;
                 }
                 0
@@ -183,15 +184,43 @@ impl<B: Backend> MmapPeripheral for Uart<B> {
     }
 }
 
-pub struct UartTty {}
+pub struct UartTty {
+    data_available: Arc<Mutex<bool>>,
+    reader: mpsc::Receiver<char>,
+}
+
+impl UartTty {
+    pub fn new() -> Self {
+        let (tx, rx): (mpsc::Sender<char>, mpsc::Receiver<char>) = mpsc::channel();
+        let data_mux = Arc::new(Mutex::new(false));
+        let data_mux_clone = data_mux.clone();
+        thread::spawn(move || loop {
+            let mut buffer: [u8; 1] = [0];
+            if let Ok(count) = io::stdin().read(&mut buffer) {
+                if count != 0 {
+                    tx.send(buffer[0] as char).unwrap();
+                    *data_mux_clone.lock().unwrap() = true;
+                }
+            }
+        });
+        UartTty {
+            data_available: data_mux,
+            reader: rx,
+        }
+    }
+}
 
 impl Backend for UartTty {
+    fn has_data(&self) -> bool {
+        *self.data_available.lock().unwrap()
+    }
     fn read_cb(&self) -> Option<u8> {
-        let mut buffer: [u8; 1] = [0];
-        if let Ok(count) = io::stdin().read(&mut buffer) {
-            if count != 0 {
-                return Some(buffer[0]);
-            }
+        match self.reader.try_recv() {
+            Ok(val) => return Some(val as u8),
+            Err(err) => match err {
+                TryRecvError::Empty => {}
+                TryRecvError::Disconnected => panic!(),
+            },
         }
         None
     }
@@ -201,11 +230,34 @@ impl Backend for UartTty {
 }
 
 pub struct UartBuffered {
-    pub writer: mpsc::Sender<char>,
-    pub reader: mpsc::Receiver<char>,
+    data_available: Arc<Mutex<bool>>,
+    writer: mpsc::Sender<char>,
+    reader: mpsc::Receiver<char>,
+}
+
+impl UartBuffered {
+    pub fn new(input: mpsc::Receiver<char>, output: mpsc::Sender<char>) -> Self {
+        let (tx, rx): (mpsc::Sender<char>, mpsc::Receiver<char>) = mpsc::channel();
+        let data_mux = Arc::new(Mutex::new(false));
+        let data_mux_clone = data_mux.clone();
+        thread::spawn(move || loop {
+            if let Ok(data) = input.recv() {
+                tx.send(data).unwrap();
+                *data_mux_clone.lock().unwrap() = true;
+            }
+        });
+        UartBuffered {
+            data_available: data_mux,
+            writer: output,
+            reader: rx,
+        }
+    }
 }
 
 impl Backend for UartBuffered {
+    fn has_data(&self) -> bool {
+        *self.data_available.lock().unwrap()
+    }
     fn read_cb(&self) -> Option<u8> {
         match self.reader.try_recv() {
             Ok(val) => return Some(val as u8),
