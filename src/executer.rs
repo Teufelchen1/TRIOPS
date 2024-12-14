@@ -1,3 +1,4 @@
+//! This file is scoped to a single function: `exec()`.
 use crate::decoder::{RS1value, RS2value};
 use crate::instructions::{decompress, Instruction};
 use crate::memory::Memory;

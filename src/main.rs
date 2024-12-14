@@ -1,3 +1,8 @@
+//! This is TRIOPS entry point, where `main()` is located.
+//! The scope of this file is:
+//!  - The argument parsing and handling
+//!  - The interactions with the filesystem
+//!  - Setup and run the emulator
 #![allow(clippy::upper_case_acronyms)]
 #![allow(clippy::cast_possible_wrap)]
 #![allow(clippy::cast_possible_truncation)]
@@ -32,10 +37,19 @@ struct Args {
     #[arg(short, long)]
     file: String,
 
-    #[arg(long, default_value_t = false)]
+    /// If true, no TUI is started. Defaults to false.
+    ///
+    /// TRIOPS will run as fast as the CPU allows.
+    /// The UART will be mapped to stdio.
+    #[arg(long, default_value_t = false, verbatim_doc_comment)]
     headless: bool,
 
-    #[arg(long, default_value_t = false)]
+    /// If true, the emulation result will be checked. Defaults to false.
+    ///
+    /// TRIOPS will probe the registers according to the riscv-software-src/riscv-tests.
+    /// Their contents determine the return value. The checks are done after the emulation completed.
+    /// Mainly used for CI.
+    #[arg(long, default_value_t = false, verbatim_doc_comment)]
     testing: bool,
 }
 

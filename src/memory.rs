@@ -1,3 +1,5 @@
+//! This file is scoped around the `Memory` struct.
+//! If something can not be `impl Memory` it is considered out of scope.
 use crate::periph::MmapPeripheral;
 
 pub struct Memory<'trait_periph> {

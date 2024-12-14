@@ -1,3 +1,4 @@
+//! Utilities that might be shared throug out TRIOPS
 pub fn sign_extend(num: u32, bitnum: u32) -> u32 {
     let msb = num >> (bitnum - 1);
     let sign_filled = {

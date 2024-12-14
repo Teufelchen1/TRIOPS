@@ -1,3 +1,10 @@
+//! Here lies the definition of all available risc-v instructions.
+//! The scope is defined as:
+//!  - All business related to `Instructions`
+//!  - Define all `Instruction` enums
+//!  - Host the decompression of `Instruction` via `decompress()`
+//!  - Provide classification via `is_ziscr()`, `is_m()` and `is_compressed()`
+//!  - Pretty print `Instruction`
 use crate::decoder::{Immediate, RDindex, RS1index, RS2index};
 use crate::register::index_to_name;
 

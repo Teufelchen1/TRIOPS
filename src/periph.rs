@@ -1,3 +1,5 @@
+//! Emulation of hardware peripherals is scoped for this file.
+//! Currently, only memory mapped peripherals are available via `trait MmapPeripheral`.
 use std::io;
 use std::io::Read;
 use std::sync::mpsc::{self, TryRecvError};
@@ -9,7 +11,7 @@ pub trait MmapPeripheral {
     fn write(&mut self, offset: usize, value: u8);
 }
 
-pub trait Backend {
+trait Backend {
     fn has_data(&self) -> bool;
     fn read_cb(&self) -> Option<u8>;
     fn write_cb(&self, value: u8);

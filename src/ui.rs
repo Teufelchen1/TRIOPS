@@ -1,3 +1,4 @@
+//! The terminal user interface is the scope of this file.
 use crate::cpu::CPU;
 use crate::register::Register;
 use ratatui::{backend::CrosstermBackend, Terminal};

@@ -1,3 +1,5 @@
+//! This file is scoped around the `CPU` struct.
+//! If something can not be `impl CPU` it is considered out of scope.
 use std::array;
 
 use crate::instructions::Instruction;

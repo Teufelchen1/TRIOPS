@@ -1,3 +1,8 @@
+//! The decoder module is split into the four quadrants of possible risc-v instructions.
+//! In each decoder, the instruction is classified into it's `OpCode` type.
+//! See Chapter 34 in the The RISC-V Instruction Set Manual Volume I, Version 20240411.
+//! Most instructions fall into the last quadrant number three, which contains the "normal"
+//! 32 bit wide instructions.
 mod decoder_q0;
 mod decoder_q1;
 mod decoder_q2;
