@@ -40,6 +40,10 @@ pub fn exec(
     // we also have to differenciate that here.
     let compressed_instruction;
     let instruction_address = register_file.pc;
+    assert!(
+        instruction_address % 2 == 0,
+        "Instruction address not aligned on two byte."
+    );
     let actual_instruction = {
         if instruction.is_compressed() {
             register_file.pc += 2;

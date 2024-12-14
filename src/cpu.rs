@@ -27,7 +27,7 @@ pub struct CPU<'trait_periph> {
 }
 
 impl<'trait_periph> CPU<'trait_periph> {
-    pub fn default(file: &[u8], uart: &'trait_periph mut dyn MmapPeripheral) -> Self {
+    pub fn from_elf(file: &[u8], uart: &'trait_periph mut dyn MmapPeripheral) -> Self {
         let mut cpu = Self {
             register: Register::default(),
             memory: Memory::default_hifive(uart),
@@ -63,6 +63,35 @@ impl<'trait_periph> CPU<'trait_periph> {
 
         cpu.register.pc =
             u32::try_from(elffile.ehdr.e_entry).expect("Failed to read start address e_entry");
+
+        cpu
+    }
+
+    pub fn from_bin(
+        file: &[u8],
+        uart: &'trait_periph mut dyn MmapPeripheral,
+        entry_address: usize,
+        base_address: usize,
+    ) -> Self {
+        let mut cpu = Self {
+            register: Register::default(),
+            memory: Memory::default_hifive(uart),
+            instruction_log: array::from_fn(|_| None),
+        };
+
+        if cpu.memory.is_rom(base_address) {
+            for (addr, i) in file.iter().enumerate() {
+                cpu.memory.rom[base_address - cpu.memory.rom_base + addr] = *i;
+            }
+        } else if cpu.memory.is_ram(base_address) {
+            for (addr, i) in file.iter().enumerate() {
+                cpu.memory.ram[base_address - cpu.memory.ram_base + addr] = *i;
+            }
+        } else {
+            panic!("The provided baseaddress was neither in ROM nor RAM.");
+        }
+
+        cpu.register.pc = entry_address as u32;
 
         cpu
     }
