@@ -130,7 +130,7 @@ impl<B: Backend> MmapPeripheral for Uart<B> {
                 ret
             }
             0x15..=0x17 => 0,
-            0x18 => todo!(), // div Baud rate divisor
+            0x18 => 0, // TODO: div Baud rate divisor
             _ => panic!("UART read-access out of bounds: {address_offset:}"),
         }
     }
@@ -180,7 +180,8 @@ impl<B: Backend> MmapPeripheral for Uart<B> {
                 self.rxwm_ie = (value & 0b10) != 0;
             }
             0x11..=0x17 => (),
-            0x18 => todo!(), // div Baud rate divisor
+            0x18 => (),        // div Baud rate divisor
+            0x19..=0x1C => (), // FIXME: Needed to ger RIOT running
             _ => panic!("UART write-access out of bounds: {address_offset:}"),
         }
     }

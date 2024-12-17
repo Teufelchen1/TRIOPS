@@ -3,6 +3,7 @@ use crate::instructions::Instruction;
 use crate::utils::sign_extend;
 
 type Funct3 = u32;
+type Funct5 = u32;
 type Funct7 = u32;
 
 fn immediate_i(instruction: u32) -> Immediate {
@@ -60,6 +61,10 @@ fn rd(instruction: u32) -> RDindex {
 
 fn funct3(instruction: u32) -> Funct3 {
     ((instruction >> 12) & 0b111) as Funct3
+}
+
+fn funct5(instruction: u32) -> Funct3 {
+    ((instruction >> 27) & 0b1_1111) as Funct5
 }
 
 fn funct7(instruction: u32) -> Funct7 {
@@ -226,7 +231,25 @@ pub fn decode(instruction: u32) -> Result<Instruction, &'static str> {
         }
         OpCode::STOREFP => Err("Not implemented: STOREFP"),
         OpCode::CUSTOM1 => Err("Not implemented: CUSTOM1"),
-        OpCode::AMO => Err("Not implemented: AMO"),
+        OpCode::AMO => {
+            let rd: RDindex = rd(instruction);
+            let rs1: RS1index = rs1(instruction);
+            let rs2: RS2index = rs2(instruction);
+            match funct5(instruction) {
+                0b00010 => Ok(Instruction::LRW(rd, rs1)),
+                0b00011 => Ok(Instruction::SCW(rd, rs1, rs2)),
+                0b00001 => Ok(Instruction::AMOSWAPW(rd, rs1, rs2)),
+                0b00000 => Ok(Instruction::AMOADDW(rd, rs1, rs2)),
+                0b00100 => Ok(Instruction::AMOXORW(rd, rs1, rs2)),
+                0b01100 => Ok(Instruction::AMOANDW(rd, rs1, rs2)),
+                0b01000 => Ok(Instruction::AMOORW(rd, rs1, rs2)),
+                0b10000 => Ok(Instruction::AMOMINW(rd, rs1, rs2)),
+                0b10100 => Ok(Instruction::AMOMAXW(rd, rs1, rs2)),
+                0b11000 => Ok(Instruction::AMOMINUW(rd, rs1, rs2)),
+                0b11100 => Ok(Instruction::AMOMAXUW(rd, rs1, rs2)),
+                _ => Err("Invalid funct5 AMO-Type"),
+            }
+        }
         OpCode::OP => {
             /* All OP are R-Type instructions */
             let rd_index: RDindex = rd(instruction);
@@ -348,6 +371,7 @@ pub fn decode(instruction: u32) -> Result<Instruction, &'static str> {
                     0b0000_0000_0000 => Ok(Instruction::ECALL()),
                     0b0000_0000_0001 => Ok(Instruction::EBREAK()),
                     0b0011_0000_0010 => Ok(Instruction::MRET()),
+                    0b0001_0000_0101 => Ok(Instruction::WFI()),
                     _ => Err("Invalid SYSTEM instruction immediate"),
                 },
                 0b001 => Ok(Instruction::CSRRW(rd_index, rs1, sys_imm)),

@@ -69,6 +69,18 @@ pub enum Instruction {
     DIVU(RDindex, RS1index, RS2index),
     REM(RDindex, RS1index, RS2index),
     REMU(RDindex, RS1index, RS2index),
+    /* A */
+    LRW(RDindex, RS1index),
+    SCW(RDindex, RS1index, RS2index),
+    AMOSWAPW(RDindex, RS1index, RS2index),
+    AMOADDW(RDindex, RS1index, RS2index),
+    AMOXORW(RDindex, RS1index, RS2index),
+    AMOANDW(RDindex, RS1index, RS2index),
+    AMOORW(RDindex, RS1index, RS2index),
+    AMOMINW(RDindex, RS1index, RS2index),
+    AMOMAXW(RDindex, RS1index, RS2index),
+    AMOMINUW(RDindex, RS1index, RS2index),
+    AMOMAXUW(RDindex, RS1index, RS2index),
     /* Compressed Q1 */
     CADDI4SPN(RDindex, Immediate),
     CFLD(RDindex, RS1index, Immediate),
@@ -111,6 +123,8 @@ pub enum Instruction {
     CFSDSP(RS2index, Immediate),
     CSWSP(RS2index, Immediate),
     CFSWSP(RS2index, Immediate),
+    /* Priv */
+    WFI(),
 }
 
 pub fn decompress(inst: &Instruction) -> Instruction {
@@ -555,6 +569,71 @@ impl Instruction {
                 index_to_name(rs1index),
                 index_to_name(rs2index)
             ),
+            Instruction::LRW(rdindex, rs1index) => format!(
+                "lrw {:}, {:}",
+                index_to_name(rdindex),
+                index_to_name(rs1index)
+            ),
+            Instruction::SCW(rdindex, rs1index, rs2index) => format!(
+                "scw {:}, {:}, {:}",
+                index_to_name(rdindex),
+                index_to_name(rs1index),
+                index_to_name(rs2index)
+            ),
+            Instruction::AMOSWAPW(rdindex, rs1index, rs2index) => format!(
+                "amoswapw {:}, {:}, {:}",
+                index_to_name(rdindex),
+                index_to_name(rs1index),
+                index_to_name(rs2index)
+            ),
+            Instruction::AMOADDW(rdindex, rs1index, rs2index) => format!(
+                "amoaddw {:}, {:}, {:}",
+                index_to_name(rdindex),
+                index_to_name(rs1index),
+                index_to_name(rs2index)
+            ),
+            Instruction::AMOXORW(rdindex, rs1index, rs2index) => format!(
+                "amoxorw {:}, {:}, {:}",
+                index_to_name(rdindex),
+                index_to_name(rs1index),
+                index_to_name(rs2index)
+            ),
+            Instruction::AMOANDW(rdindex, rs1index, rs2index) => format!(
+                "amoandw {:}, {:}, {:}",
+                index_to_name(rdindex),
+                index_to_name(rs1index),
+                index_to_name(rs2index)
+            ),
+            Instruction::AMOORW(rdindex, rs1index, rs2index) => format!(
+                "amoorw {:}, {:}, {:}",
+                index_to_name(rdindex),
+                index_to_name(rs1index),
+                index_to_name(rs2index)
+            ),
+            Instruction::AMOMINW(rdindex, rs1index, rs2index) => format!(
+                "amominw {:}, {:}, {:}",
+                index_to_name(rdindex),
+                index_to_name(rs1index),
+                index_to_name(rs2index)
+            ),
+            Instruction::AMOMAXW(rdindex, rs1index, rs2index) => format!(
+                "amomaxw {:}, {:}, {:}",
+                index_to_name(rdindex),
+                index_to_name(rs1index),
+                index_to_name(rs2index)
+            ),
+            Instruction::AMOMINUW(rdindex, rs1index, rs2index) => format!(
+                "amominuw {:}, {:}, {:}",
+                index_to_name(rdindex),
+                index_to_name(rs1index),
+                index_to_name(rs2index)
+            ),
+            Instruction::AMOMAXUW(rdindex, rs1index, rs2index) => format!(
+                "amomaxuw {:}, {:}, {:}",
+                index_to_name(rdindex),
+                index_to_name(rs1index),
+                index_to_name(rs2index)
+            ),
             Instruction::CADDI4SPN(rdindex, cnzuimmediate) => {
                 format!("C.ADDI4SPN {:}, {:}", index_to_name(rdindex), cnzuimmediate)
             }
@@ -706,6 +785,7 @@ impl Instruction {
             Instruction::CFSWSP(rs2index, cluimmediate) => {
                 format!("C.FSWSP {:}, {:}", index_to_name(rs2index), cluimmediate)
             }
+            Instruction::WFI() => "wfi".to_string(),
         }
     }
 }

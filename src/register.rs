@@ -103,7 +103,6 @@ impl CSR {
                 panic!("Attempt to write to read-only CSR!");
             }
             0x300 => {
-                println!("Ingoring write of {value:X} into mstatus");
                 self.mstatus = 0;
             }
             0x301 => {
@@ -119,7 +118,6 @@ impl CSR {
                 self.mideleg = 0;
             }
             0x304 => {
-                println!("Ingoring write of {value:X} into mie");
                 self.mie = 0;
             }
             0x305 => {

@@ -12,6 +12,7 @@ pub struct Memory<'trait_periph> {
     pub rom_base: usize,
     pub rom_limit: usize,
     pub rom: Vec<u8>,
+    pub reservation: Option<(usize, u32)>,
 }
 
 impl<'trait_periph> Memory<'trait_periph> {
@@ -26,6 +27,7 @@ impl<'trait_periph> Memory<'trait_periph> {
             ram_base: 0x8000_0000,
             ram_limit: 0x8000_4000,
             ram: vec![0; 0x4000],
+            reservation: None,
         }
     }
 
@@ -53,6 +55,26 @@ impl<'trait_periph> Memory<'trait_periph> {
         if self.is_uart(addr) {
             return u32::from(self.uart.read(addr - self.uart_base));
         }
+
+        // FIXME: Temporal hack to get RIOT happy in-time for the 1.0 release
+        #[allow(clippy::match_same_arms)]
+        match addr {
+            // PLIC
+            0x0C00_0000..=0x0FFF_FFFF => {
+                return 0xFF;
+            }
+            // PRCI
+            0x1000_8000..=0x1000_800F => {
+                // RIOT uses hfrosccfg, hfxosccfg, pllcfg, plloutdiv, procmoncfg
+                return 0xFF;
+            }
+            // GPIO
+            0x1001_2000..=0x1001_2FFF => {
+                return 0xFF;
+            }
+            _ => (),
+        }
+
         panic!("Memory read outside memory map: 0x{addr:X}");
     }
     pub fn read_halfword(&self, index: usize) -> u32 {
@@ -70,6 +92,26 @@ impl<'trait_periph> Memory<'trait_periph> {
         if self.is_uart(addr) {
             return self.uart.write(addr - self.uart_base, (value & 0xFF) as u8);
         }
+
+        // FIXME: Temporal hack to get RIOT happy in-time for the 1.0 release
+        #[allow(clippy::match_same_arms)]
+        match addr {
+            // PLIC
+            0x0C00_0000..=0x0FFF_FFFF => {
+                return;
+            }
+            // PRCI
+            0x1000_8000..=0x1000_800F => {
+                // RIOT uses hfrosccfg, hfxosccfg, pllcfg, plloutdiv, procmoncfg
+                return;
+            }
+            // GPIO
+            0x1001_2000..=0x1001_2FFF => {
+                return;
+            }
+            _ => (),
+        }
+
         panic!("Memory write outside writable memory map: 0x{addr:X}");
     }
     pub fn write_halfword(&mut self, index: usize, value: u32) {

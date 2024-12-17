@@ -242,7 +242,7 @@ pub fn tui_loop<'a>(
     let mut insert_mode = false;
     let mut auto_step = false;
 
-    loop {
+    'outer: loop {
         terminal.draw(|f| ui.ui(f, cpu, uart_rx, show_help, insert_mode, &user_input))?;
 
         if event::poll(Duration::from_millis(20))? {
@@ -299,18 +299,20 @@ pub fn tui_loop<'a>(
                 }
             }
         } else if auto_step {
-            let ok = match cpu.step() {
-                Ok(ok) => ok,
-                Err(err) => panic!(
-                    "{}",
-                    &format!(
-                        "Failed to step at address 0x{:X}: {:}",
-                        cpu.register.pc, err
-                    )
-                ),
-            };
-            if !ok {
-                break;
+            for _ in 0..20 {
+                let ok = match cpu.step() {
+                    Ok(ok) => ok,
+                    Err(err) => panic!(
+                        "{}",
+                        &format!(
+                            "Failed to step at address 0x{:X}: {:}",
+                            cpu.register.pc, err
+                        )
+                    ),
+                };
+                if !ok {
+                    break 'outer;
+                }
             }
         }
     }
