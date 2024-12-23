@@ -48,7 +48,7 @@ fn get_bimm(inst: u32) -> Immediate {
             + bit_from_to(inst, 10, 3)
             + bit_from_to(inst, 11, 4)
             + bit_from_to(inst, 12, 8),
-        12,
+        9,
     ) as Immediate
 }
 

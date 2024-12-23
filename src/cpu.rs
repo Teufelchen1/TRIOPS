@@ -18,7 +18,7 @@ use elf::abi;
 use elf::endian::AnyEndian;
 use elf::ElfBytes;
 
-const LOG_LENGTH: usize = 20;
+const LOG_LENGTH: usize = 40;
 
 pub struct CPU<'trait_periph> {
     pub register: Register,
