@@ -1,12 +1,9 @@
 //! This file is scoped to a single function: `exec()`.
 use std::cmp::{max, min};
 
-use crate::decoder::{RS1value, RS2value};
-use crate::instructions::{decompress, Instruction};
+use crate::instructions::{sign_extend, Instruction, RS1value, RS2value};
 use crate::memory::Memory;
 use crate::register::Register;
-
-use crate::utils::sign_extend;
 
 macro_rules! add_signed {
     ($unsigned:expr, $signed:expr) => {{
@@ -49,7 +46,7 @@ pub fn exec(
     let actual_instruction = {
         if instruction.is_compressed() {
             register_file.pc += 2;
-            compressed_instruction = decompress(instruction);
+            compressed_instruction = instruction.decompress();
             &compressed_instruction
         } else {
             register_file.pc += 4;

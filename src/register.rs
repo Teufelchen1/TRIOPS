@@ -1,6 +1,6 @@
 //! Everything related to registers is scoped to this file.
 //! This includes naming, definitions, usage and pretty printing
-use crate::decoder::Rindex;
+use crate::instructions::Rindex;
 
 pub fn index_to_name(register: Rindex) -> &'static str {
     match register {

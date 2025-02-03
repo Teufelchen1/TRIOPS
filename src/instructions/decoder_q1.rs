@@ -1,6 +1,4 @@
-use crate::decoder::{bit_from_to, Immediate, RDindex, RS1index};
-use crate::instructions::Instruction;
-use crate::utils::sign_extend;
+use crate::instructions::{bit_from_to, sign_extend, Immediate, Instruction, RDindex, RS1index};
 
 #[derive(Debug, PartialEq)]
 enum OpCode {

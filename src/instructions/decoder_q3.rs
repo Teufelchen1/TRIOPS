@@ -1,6 +1,4 @@
-use crate::decoder::{Immediate, RDindex, RS1index, RS2index};
-use crate::instructions::Instruction;
-use crate::utils::sign_extend;
+use crate::instructions::{sign_extend, Immediate, Instruction, RDindex, RS1index, RS2index};
 
 type Funct3 = u32;
 type Funct5 = u32;

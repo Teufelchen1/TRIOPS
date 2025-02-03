@@ -2,9 +2,7 @@
 //! If something can not be `impl CPU` it is considered out of scope.
 use std::array;
 
-use crate::instructions::Instruction;
-
-use crate::decoder::decode;
+use crate::instructions::{decode, Instruction};
 
 use crate::executer::exec;
 
