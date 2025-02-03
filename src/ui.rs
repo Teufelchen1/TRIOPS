@@ -86,7 +86,7 @@ impl ViewState {
         &mut self,
         f: &mut Frame,
         cpu: &CPU<'_>,
-        uart_rx: &mpsc::Receiver<char>,
+        uart_rx: &mpsc::Receiver<u8>,
         show_help: bool,
         insert_mode: bool,
         user_input: &String,
@@ -168,7 +168,7 @@ impl ViewState {
             .title_alignment(Alignment::Left);
 
         if let Ok(msg) = uart_rx.try_recv() {
-            self.uart.push(msg);
+            self.uart.push(msg as char);
         }
         let text: &str = &self.uart;
         let text = Text::from(text);
@@ -227,8 +227,8 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
 
 pub fn tui_loop<'a>(
     cpu: &'a mut CPU<'a>,
-    uart_rx: &mpsc::Receiver<char>,
-    uart_tx: &mpsc::Sender<char>,
+    uart_rx: &mpsc::Receiver<u8>,
+    uart_tx: &mpsc::Sender<u8>,
 ) -> anyhow::Result<()> {
     enable_raw_mode()?;
     let stdout = io::stdout();
@@ -256,7 +256,7 @@ pub fn tui_loop<'a>(
                         KeyCode::Enter => {
                             user_input.push('\n');
                             for ch in user_input.chars() {
-                                uart_tx.send(ch)?;
+                                uart_tx.send(ch as u8)?;
                             }
                             user_input.clear();
                         }

@@ -1,21 +1,4 @@
-//! Emulation of hardware peripherals is scoped for this file.
-//! Currently, only memory mapped peripherals are available via `trait MmapPeripheral`.
-use std::io;
-use std::io::Read;
-use std::sync::mpsc::{self, TryRecvError};
-use std::sync::{Arc, Mutex};
-use std::thread;
-
-pub trait MmapPeripheral {
-    fn read(&self, offset: usize) -> u8;
-    fn write(&mut self, offset: usize, value: u8);
-}
-
-trait Backend {
-    fn has_data(&self) -> bool;
-    fn read_cb(&self) -> Option<u8>;
-    fn write_cb(&self, value: u8);
-}
+use crate::periph::{MmapPeripheral, PeripheralBackend};
 
 #[allow(clippy::struct_excessive_bools)]
 pub struct Uart<B> {
@@ -47,9 +30,9 @@ impl<B> Uart<B> {
     }
 }
 
-impl<B: Backend> MmapPeripheral for Uart<B> {
+impl<B: PeripheralBackend> Uart<B> {
     #[allow(clippy::match_same_arms)]
-    fn read(&self, address_offset: usize) -> u8 {
+    fn read_uart(&self, address_offset: usize) -> u8 {
         match address_offset {
             0x00..=0x02 => 0, // txdata Transmit data register
             0x03 => {
@@ -136,7 +119,7 @@ impl<B: Backend> MmapPeripheral for Uart<B> {
     }
 
     #[allow(clippy::match_same_arms)]
-    fn write(&mut self, address_offset: usize, value: u8) {
+    fn write_uart(&mut self, address_offset: usize, value: u8) {
         match address_offset {
             0x00 => {
                 // txdata Transmit data register
@@ -187,91 +170,11 @@ impl<B: Backend> MmapPeripheral for Uart<B> {
     }
 }
 
-pub struct UartTty {
-    data_available: Arc<Mutex<bool>>,
-    reader: mpsc::Receiver<char>,
-}
-
-impl UartTty {
-    pub fn new() -> Self {
-        let (tx, rx): (mpsc::Sender<char>, mpsc::Receiver<char>) = mpsc::channel();
-        let data_mux = Arc::new(Mutex::new(false));
-        let data_mux_clone = data_mux.clone();
-        thread::spawn(move || loop {
-            let mut buffer: [u8; 1] = [0];
-            if let Ok(count) = io::stdin().read(&mut buffer) {
-                if count != 0 {
-                    tx.send(buffer[0] as char).unwrap();
-                    *data_mux_clone.lock().unwrap() = true;
-                }
-            }
-        });
-        UartTty {
-            data_available: data_mux,
-            reader: rx,
-        }
+impl<B: PeripheralBackend> MmapPeripheral for Uart<B> {
+    fn read(&self, offset: usize) -> u8 {
+        self.read_uart(offset)
     }
-}
-
-impl Backend for UartTty {
-    fn has_data(&self) -> bool {
-        *self.data_available.lock().unwrap()
-    }
-    fn read_cb(&self) -> Option<u8> {
-        match self.reader.try_recv() {
-            Ok(val) => return Some(val as u8),
-            Err(err) => match err {
-                TryRecvError::Empty => {}
-                TryRecvError::Disconnected => panic!(),
-            },
-        }
-        None
-    }
-    fn write_cb(&self, value: u8) {
-        print!("{:}", value as char);
-    }
-}
-
-pub struct UartBuffered {
-    data_available: Arc<Mutex<bool>>,
-    writer: mpsc::Sender<char>,
-    reader: mpsc::Receiver<char>,
-}
-
-impl UartBuffered {
-    pub fn new(input: mpsc::Receiver<char>, output: mpsc::Sender<char>) -> Self {
-        let (tx, rx): (mpsc::Sender<char>, mpsc::Receiver<char>) = mpsc::channel();
-        let data_mux = Arc::new(Mutex::new(false));
-        let data_mux_clone = data_mux.clone();
-        thread::spawn(move || loop {
-            if let Ok(data) = input.recv() {
-                tx.send(data).unwrap();
-                *data_mux_clone.lock().unwrap() = true;
-            }
-        });
-        UartBuffered {
-            data_available: data_mux,
-            writer: output,
-            reader: rx,
-        }
-    }
-}
-
-impl Backend for UartBuffered {
-    fn has_data(&self) -> bool {
-        *self.data_available.lock().unwrap()
-    }
-    fn read_cb(&self) -> Option<u8> {
-        match self.reader.try_recv() {
-            Ok(val) => return Some(val as u8),
-            Err(err) => match err {
-                TryRecvError::Empty => {}
-                TryRecvError::Disconnected => panic!(),
-            },
-        }
-        None
-    }
-    fn write_cb(&self, value: u8) {
-        self.writer.send(value as char).unwrap();
+    fn write(&mut self, offset: usize, value: u8) {
+        self.write_uart(offset, value);
     }
 }
