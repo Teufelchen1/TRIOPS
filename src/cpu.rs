@@ -2,9 +2,7 @@
 //! If something can not be `impl CPU` it is considered out of scope.
 use std::array;
 
-use crate::instructions::Instruction;
-
-use crate::decoder::decode;
+use crate::instructions::{decode, Instruction};
 
 use crate::executer::exec;
 
@@ -33,6 +31,7 @@ impl<'trait_periph> CPU<'trait_periph> {
             memory: Memory::default_hifive(uart),
             instruction_log: array::from_fn(|_| None),
         };
+        cpu.register.csr.mie = 1;
 
         let elffile =
             ElfBytes::<AnyEndian>::minimal_parse(file).expect("Failed to parse provided ELF file");
@@ -96,18 +95,18 @@ impl<'trait_periph> CPU<'trait_periph> {
         cpu
     }
 
-    pub fn instruction_at_addr(&self, addr: usize) -> Result<Instruction, &'static str> {
-        decode(self.memory.read_word(addr))
+    pub fn instruction_at_addr(&self, addr: usize) -> anyhow::Result<Instruction> {
+        decode(self.memory.read_word(addr)?)
     }
 
-    pub fn current_instruction(&self) -> Result<(usize, Instruction), &'static str> {
+    pub fn current_instruction(&self) -> anyhow::Result<(usize, Instruction)> {
         let addr = self.register.pc as usize;
         let inst = self.instruction_at_addr(addr)?;
         Ok((addr, inst))
     }
 
     #[allow(dead_code)]
-    pub fn next_instruction(&self) -> Result<(usize, Instruction), &'static str> {
+    pub fn next_instruction(&self) -> anyhow::Result<(usize, Instruction)> {
         let (cur_addr, cur_inst) = self.current_instruction()?;
         let addr = {
             if cur_inst.is_compressed() {
@@ -134,7 +133,7 @@ impl<'trait_periph> CPU<'trait_periph> {
                     addr += 4;
                 }
             } else {
-                instruction_list.push((addr, Err(self.memory.read_word(addr))));
+                instruction_list.push((addr, Err(self.memory.read_word(addr).unwrap_or(0))));
                 addr += 4;
             }
         }
@@ -155,9 +154,9 @@ impl<'trait_periph> CPU<'trait_periph> {
 
     /// Returns true for all instructions except when executing ebreak.
     /// ebreak is used to signaling the termination of the programm.
-    pub fn step(&mut self) -> Result<bool, &'static str> {
+    pub fn step(&mut self) -> anyhow::Result<bool> {
         let (addr, inst) = self.current_instruction()?;
-        exec(&mut self.register, &mut self.memory, &inst, true, true);
+        exec(&mut self.register, &mut self.memory, &inst, true, true)?;
         self.instruction_log.rotate_left(1);
         self.instruction_log[LOG_LENGTH - 1] = Some((addr, inst.clone()));
         Ok(!matches!(inst, Instruction::EBREAK()))

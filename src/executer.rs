@@ -1,12 +1,9 @@
 //! This file is scoped to a single function: `exec()`.
 use std::cmp::{max, min};
 
-use crate::decoder::{RS1value, RS2value};
-use crate::instructions::{decompress, Instruction};
+use crate::instructions::{sign_extend, Instruction, RS1value, RS2value};
 use crate::memory::Memory;
 use crate::register::Register;
-
-use crate::utils::sign_extend;
 
 macro_rules! add_signed {
     ($unsigned:expr, $signed:expr) => {{
@@ -26,7 +23,7 @@ pub fn exec(
     instruction: &Instruction,
     zicsr_enabled: bool,
     m_enabled: bool,
-) {
+) -> anyhow::Result<()> {
     assert!(
         !instruction.is_zicsr() || zicsr_enabled,
         "Zicsr instruction found but zicsr is not enabled."
@@ -49,7 +46,7 @@ pub fn exec(
     let actual_instruction = {
         if instruction.is_compressed() {
             register_file.pc += 2;
-            compressed_instruction = decompress(instruction);
+            compressed_instruction = instruction.decompress();
             &compressed_instruction
         } else {
             register_file.pc += 4;
@@ -151,31 +148,31 @@ pub fn exec(
         Instruction::LB(rdindex, rs1index, iimmediate) => {
             let rs1: RS1value = register_file.read(rs1index);
             let target = add_signed!(rs1, iimmediate) as usize;
-            let value = sign_extend(memory.read_byte(target), 8);
+            let value = sign_extend(memory.read_byte(target)?, 8);
             register_file.write(rdindex, value);
         }
         Instruction::LH(rdindex, rs1index, iimmediate) => {
             let rs1: RS1value = register_file.read(rs1index);
             let target = add_signed!(rs1, iimmediate) as usize;
-            let value = sign_extend(memory.read_halfword(target), 16);
+            let value = sign_extend(memory.read_halfword(target)?, 16);
             register_file.write(rdindex, value);
         }
         Instruction::LW(rdindex, rs1index, iimmediate) => {
             let rs1: RS1value = register_file.read(rs1index);
             let target = add_signed!(rs1, iimmediate) as usize;
-            let value = memory.read_word(target);
+            let value = memory.read_word(target)?;
             register_file.write(rdindex, value);
         }
         Instruction::LBU(rdindex, rs1index, iimmediate) => {
             let rs1: RS1value = register_file.read(rs1index);
             let target = add_signed!(rs1, iimmediate) as usize;
-            let value = memory.read_byte(target);
+            let value = memory.read_byte(target)?;
             register_file.write(rdindex, value);
         }
         Instruction::LHU(rdindex, rs1index, iimmediate) => {
             let rs1: RS1value = register_file.read(rs1index);
             let target = add_signed!(rs1, iimmediate) as usize;
-            let value = memory.read_halfword(target);
+            let value = memory.read_halfword(target)?;
             register_file.write(rdindex, value);
         }
         Instruction::SB(rs1index, rs2index, simmediate) => {
@@ -435,7 +432,7 @@ pub fn exec(
         Instruction::LRW(rdindex, rs1index) => {
             let rs1: RS1value = register_file.read(rs1index);
             let addr = rs1 as usize;
-            let value = memory.read_word(addr);
+            let value = memory.read_word(addr)?;
             register_file.write(rdindex, value);
             memory.reservation = Some((addr, value));
         }
@@ -444,7 +441,7 @@ pub fn exec(
             let rs2: RS1value = register_file.read(rs2index);
             let addr = rs1 as usize;
 
-            let value = memory.read_word(addr);
+            let value = memory.read_word(addr)?;
 
             register_file.write(rdindex, 1);
             if let Some(reservation) = memory.reservation {
@@ -458,7 +455,7 @@ pub fn exec(
         Instruction::AMOSWAPW(rdindex, rs1index, rs2index) => {
             let addr_rs1: RS1value = register_file.read(rs1index);
             let org: RS2value = register_file.read(rs2index);
-            let data = memory.read_word(addr_rs1 as usize);
+            let data = memory.read_word(addr_rs1 as usize)?;
             register_file.write(rdindex, data);
             let result = org;
             memory.write_word(addr_rs1 as usize, result);
@@ -466,7 +463,7 @@ pub fn exec(
         Instruction::AMOADDW(rdindex, rs1index, rs2index) => {
             let addr_rs1: RS1value = register_file.read(rs1index);
             let org: RS2value = register_file.read(rs2index);
-            let data = memory.read_word(addr_rs1 as usize);
+            let data = memory.read_word(addr_rs1 as usize)?;
             register_file.write(rdindex, data);
             let result = (data as i32).wrapping_add(org as i32);
             memory.write_word(addr_rs1 as usize, result as u32);
@@ -474,7 +471,7 @@ pub fn exec(
         Instruction::AMOXORW(rdindex, rs1index, rs2index) => {
             let addr_rs1: RS1value = register_file.read(rs1index);
             let org: RS2value = register_file.read(rs2index);
-            let data = memory.read_word(addr_rs1 as usize);
+            let data = memory.read_word(addr_rs1 as usize)?;
             register_file.write(rdindex, data);
             let result = data ^ org;
             memory.write_word(addr_rs1 as usize, result);
@@ -482,7 +479,7 @@ pub fn exec(
         Instruction::AMOANDW(rdindex, rs1index, rs2index) => {
             let addr_rs1: RS1value = register_file.read(rs1index);
             let org: RS2value = register_file.read(rs2index);
-            let data = memory.read_word(addr_rs1 as usize);
+            let data = memory.read_word(addr_rs1 as usize)?;
             register_file.write(rdindex, data);
             let result = data & org;
             memory.write_word(addr_rs1 as usize, result);
@@ -490,7 +487,7 @@ pub fn exec(
         Instruction::AMOORW(rdindex, rs1index, rs2index) => {
             let addr_rs1: RS1value = register_file.read(rs1index);
             let org: RS2value = register_file.read(rs2index);
-            let data = memory.read_word(addr_rs1 as usize);
+            let data = memory.read_word(addr_rs1 as usize)?;
             register_file.write(rdindex, data);
             let result = data | org;
             memory.write_word(addr_rs1 as usize, result);
@@ -498,7 +495,7 @@ pub fn exec(
         Instruction::AMOMINW(rdindex, rs1index, rs2index) => {
             let addr_rs1: RS1value = register_file.read(rs1index);
             let org: RS2value = register_file.read(rs2index);
-            let data = memory.read_word(addr_rs1 as usize);
+            let data = memory.read_word(addr_rs1 as usize)?;
             register_file.write(rdindex, data);
             let result = min(data as i32, org as i32) as u32;
             memory.write_word(addr_rs1 as usize, result);
@@ -506,7 +503,7 @@ pub fn exec(
         Instruction::AMOMAXW(rdindex, rs1index, rs2index) => {
             let addr_rs1: RS1value = register_file.read(rs1index);
             let org: RS2value = register_file.read(rs2index);
-            let data = memory.read_word(addr_rs1 as usize);
+            let data = memory.read_word(addr_rs1 as usize)?;
             register_file.write(rdindex, data);
             let result = max(data as i32, org as i32) as u32;
             memory.write_word(addr_rs1 as usize, result);
@@ -514,7 +511,7 @@ pub fn exec(
         Instruction::AMOMINUW(rdindex, rs1index, rs2index) => {
             let addr_rs1: RS1value = register_file.read(rs1index);
             let org: RS2value = register_file.read(rs2index);
-            let data = memory.read_word(addr_rs1 as usize);
+            let data = memory.read_word(addr_rs1 as usize)?;
             register_file.write(rdindex, data);
             let result = min(data, org);
             memory.write_word(addr_rs1 as usize, result);
@@ -522,15 +519,17 @@ pub fn exec(
         Instruction::AMOMAXUW(rdindex, rs1index, rs2index) => {
             let addr_rs1: RS1value = register_file.read(rs1index);
             let org: RS2value = register_file.read(rs2index);
-            let data = memory.read_word(addr_rs1 as usize);
+            let data = memory.read_word(addr_rs1 as usize)?;
             register_file.write(rdindex, data);
             let result = max(data, org);
             memory.write_word(addr_rs1 as usize, result);
         }
         Instruction::WFI() => {
             // Temporal hack to make the RIOT experience nicer
+            register_file.csr.mie = 1;
             register_file.pc -= 4;
         }
         _ => todo!("{:?}", actual_instruction),
     }
+    Ok(())
 }

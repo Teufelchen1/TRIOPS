@@ -1,6 +1,4 @@
-use crate::decoder::{Immediate, RDindex, RS1index, RS2index};
-use crate::instructions::Instruction;
-use crate::utils::sign_extend;
+use crate::instructions::{sign_extend, Immediate, Instruction, RDindex, RS1index, RS2index};
 
 type Funct3 = u32;
 type Funct5 = u32;
@@ -107,7 +105,7 @@ pub enum OpCode {
     LEN80,
 }
 
-fn get_opcode(instruction: u32) -> Result<OpCode, &'static str> {
+fn get_opcode(instruction: u32) -> anyhow::Result<OpCode> {
     let op_upper_bits = (instruction >> 5) & 0b11;
     let op_lower_bits = (instruction >> 2) & 0b111;
     match op_upper_bits {
@@ -160,7 +158,7 @@ fn get_opcode(instruction: u32) -> Result<OpCode, &'static str> {
 }
 
 #[allow(clippy::too_many_lines)]
-pub fn decode(instruction: u32) -> Result<Instruction, &'static str> {
+pub fn decode(instruction: u32) -> anyhow::Result<Instruction> {
     let op = get_opcode(instruction)?;
 
     match op {
@@ -175,11 +173,11 @@ pub fn decode(instruction: u32) -> Result<Instruction, &'static str> {
                 0b010 => Ok(Instruction::LW(rd_index, rs1, i_imm)),
                 0b100 => Ok(Instruction::LBU(rd_index, rs1, i_imm)),
                 0b101 => Ok(Instruction::LHU(rd_index, rs1, i_imm)),
-                _ => Err("Invalid funct3 I-Type"),
+                _ => Err(anyhow::anyhow!("Invalid funct3 I-Type")),
             }
         }
-        OpCode::LOADFP => Err("Not implemented: LOADFP"),
-        OpCode::CUSTOM0 => Err("Not implemented: CUSTOM0"),
+        OpCode::LOADFP => Err(anyhow::anyhow!("Not implemented: LOADFP")),
+        OpCode::CUSTOM0 => Err(anyhow::anyhow!("Not implemented: CUSTOM0")),
         OpCode::MISCMEM => {
             let rd_index: RDindex = rd(instruction);
             let rs1: RS1index = rs1(instruction);
@@ -215,8 +213,8 @@ pub fn decode(instruction: u32) -> Result<Instruction, &'static str> {
             let u_imm: Immediate = immediate_u(instruction);
             Ok(Instruction::AUIPC(rd_index, u_imm))
         }
-        OpCode::OPIMM32 => Err("Not implemented: OPIMM32"),
-        OpCode::LEN48 => Err("Not implemented: LEN48"),
+        OpCode::OPIMM32 => Err(anyhow::anyhow!("Not implemented: OPIMM32")),
+        OpCode::LEN48 => Err(anyhow::anyhow!("Not implemented: LEN48")),
         OpCode::STORE => {
             /* STOREs are S-Type */
             let rs1: RS1index = rs1(instruction);
@@ -226,11 +224,11 @@ pub fn decode(instruction: u32) -> Result<Instruction, &'static str> {
                 0b000 => Ok(Instruction::SB(rs1, rs2, s_imm)),
                 0b001 => Ok(Instruction::SH(rs1, rs2, s_imm)),
                 0b010 => Ok(Instruction::SW(rs1, rs2, s_imm)),
-                _ => Err("Invalid funct3 S-Type"),
+                _ => Err(anyhow::anyhow!("Invalid funct3 S-Type")),
             }
         }
-        OpCode::STOREFP => Err("Not implemented: STOREFP"),
-        OpCode::CUSTOM1 => Err("Not implemented: CUSTOM1"),
+        OpCode::STOREFP => Err(anyhow::anyhow!("Not implemented: STOREFP")),
+        OpCode::CUSTOM1 => Err(anyhow::anyhow!("Not implemented: CUSTOM1")),
         OpCode::AMO => {
             let rd: RDindex = rd(instruction);
             let rs1: RS1index = rs1(instruction);
@@ -247,7 +245,7 @@ pub fn decode(instruction: u32) -> Result<Instruction, &'static str> {
                 0b10100 => Ok(Instruction::AMOMAXW(rd, rs1, rs2)),
                 0b11000 => Ok(Instruction::AMOMINUW(rd, rs1, rs2)),
                 0b11100 => Ok(Instruction::AMOMAXUW(rd, rs1, rs2)),
-                _ => Err("Invalid funct5 AMO-Type"),
+                _ => Err(anyhow::anyhow!("Invalid funct5 AMO-Type")),
             }
         }
         OpCode::OP => {
@@ -323,16 +321,16 @@ pub fn decode(instruction: u32) -> Result<Instruction, &'static str> {
             let u_imm: Immediate = immediate_u(instruction);
             Ok(Instruction::LUI(rd_index, u_imm))
         }
-        OpCode::OP32 => Err("Not implemented: OP32"),
-        OpCode::LEN64 => Err("Not implemented: LEN64"),
-        OpCode::MADD => Err("Not implemented: MADD"),
-        OpCode::MSUB => Err("Not implemented: MSUB"),
-        OpCode::NMSUB => Err("Not implemented: NMSUB"),
-        OpCode::NMADD => Err("Not implemented: NMADD"),
-        OpCode::OPFP => Err("Not implemented: OPFP"),
-        OpCode::RESERVED1 => Err("Not implemented: RESERVED1"),
-        OpCode::CUSTOM2 => Err("Not implemented: CUSTOM2"),
-        OpCode::LEN482 => Err("Not implemented: LEN482"),
+        OpCode::OP32 => Err(anyhow::anyhow!("Not implemented: OP32")),
+        OpCode::LEN64 => Err(anyhow::anyhow!("Not implemented: LEN64")),
+        OpCode::MADD => Err(anyhow::anyhow!("Not implemented: MADD")),
+        OpCode::MSUB => Err(anyhow::anyhow!("Not implemented: MSUB")),
+        OpCode::NMSUB => Err(anyhow::anyhow!("Not implemented: NMSUB")),
+        OpCode::NMADD => Err(anyhow::anyhow!("Not implemented: NMADD")),
+        OpCode::OPFP => Err(anyhow::anyhow!("Not implemented: OPFP")),
+        OpCode::RESERVED1 => Err(anyhow::anyhow!("Not implemented: RESERVED1")),
+        OpCode::CUSTOM2 => Err(anyhow::anyhow!("Not implemented: CUSTOM2")),
+        OpCode::LEN482 => Err(anyhow::anyhow!("Not implemented: LEN482")),
         OpCode::BRANCH => {
             /* B-Type instructions */
             let rs1: RS1index = rs1(instruction);
@@ -345,7 +343,7 @@ pub fn decode(instruction: u32) -> Result<Instruction, &'static str> {
                 0b101 => Ok(Instruction::BGE(rs1, rs2, b_imm)),
                 0b110 => Ok(Instruction::BLTU(rs1, rs2, b_imm)),
                 0b111 => Ok(Instruction::BGEU(rs1, rs2, b_imm)),
-                _ => Err("Invalid funct3 B-Type"),
+                _ => Err(anyhow::anyhow!("Invalid funct3 B-Type")),
             }
         }
         OpCode::JALR => {
@@ -355,7 +353,7 @@ pub fn decode(instruction: u32) -> Result<Instruction, &'static str> {
             let i_imm: Immediate = immediate_i(instruction);
             Ok(Instruction::JALR(rd_index, rs1, i_imm))
         }
-        OpCode::RESERVED2 => Err("Not implemented: RESERVED2"),
+        OpCode::RESERVED2 => Err(anyhow::anyhow!("Not implemented: RESERVED2")),
         OpCode::JAL => {
             let rd_index: RDindex = rd(instruction);
             let j_imm: Immediate = immediate_j(instruction);
@@ -372,7 +370,7 @@ pub fn decode(instruction: u32) -> Result<Instruction, &'static str> {
                     0b0000_0000_0001 => Ok(Instruction::EBREAK()),
                     0b0011_0000_0010 => Ok(Instruction::MRET()),
                     0b0001_0000_0101 => Ok(Instruction::WFI()),
-                    _ => Err("Invalid SYSTEM instruction immediate"),
+                    _ => Err(anyhow::anyhow!("Invalid SYSTEM instruction immediate")),
                 },
                 0b001 => Ok(Instruction::CSRRW(rd_index, rs1, sys_imm)),
                 0b010 => Ok(Instruction::CSRRS(rd_index, rs1, sys_imm)),
@@ -389,11 +387,11 @@ pub fn decode(instruction: u32) -> Result<Instruction, &'static str> {
                     /* This instruction repurposes rs1 as immediate */
                     Ok(Instruction::CSRRCI(rd_index, rs1, sys_imm))
                 }
-                _ => Err("Invalid funct3 I-Type"),
+                _ => Err(anyhow::anyhow!("Invalid funct3 I-Type")),
             }
         }
-        OpCode::RESERVED3 => Err("Not implemented: RESERVED3"),
-        OpCode::CUSTOM3 => Err("Not implemented: CUSTOM3"),
-        OpCode::LEN80 => Err("Not implemented: LEN80"),
+        OpCode::RESERVED3 => Err(anyhow::anyhow!("Not implemented: RESERVED3")),
+        OpCode::CUSTOM3 => Err(anyhow::anyhow!("Not implemented: CUSTOM3")),
+        OpCode::LEN80 => Err(anyhow::anyhow!("Not implemented: LEN80")),
     }
 }

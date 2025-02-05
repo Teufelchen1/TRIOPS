@@ -5,7 +5,7 @@
 //!  - Host the decompression of `Instruction` via `decompress()`
 //!  - Provide classification via `is_ziscr()`, `is_m()` and `is_compressed()`
 //!  - Pretty print `Instruction`
-use crate::decoder::{Immediate, RDindex, RS1index, RS2index};
+use crate::instructions::{Immediate, RDindex, RS1index, RS2index};
 use crate::register::index_to_name;
 
 #[allow(dead_code)]
@@ -127,64 +127,68 @@ pub enum Instruction {
     WFI(),
 }
 
-pub fn decompress(inst: &Instruction) -> Instruction {
-    match *inst {
-        Instruction::CADDI4SPN(rdindex, cnzuimmediate) => {
-            Instruction::ADDI(rdindex, 2, cnzuimmediate)
+impl Instruction {
+    pub fn decompress(&self) -> Instruction {
+        match *self {
+            Instruction::CADDI4SPN(rdindex, cnzuimmediate) => {
+                Instruction::ADDI(rdindex, 2, cnzuimmediate)
+            }
+            Instruction::CFLD(_rdindex, _rs1index, _cuimmediate) => todo!(),
+            Instruction::CLQ(_rdindex, _rs1index, _cuimmediate) => todo!(),
+            Instruction::CLW(rdindex, rs1index, cuimmediate) => {
+                Instruction::LW(rdindex, rs1index, cuimmediate)
+            }
+            Instruction::CFLW(_rdindex, _rs1index, _cuimmediate) => todo!(),
+            Instruction::CLD(_rdindex, _rs1index, _cuimmediate) => todo!(),
+            Instruction::CFSD(_rdindex, _rs1index, _cuimmediate) => todo!(),
+            Instruction::CSQ(_rdindex, _rs1index, _cuimmediate) => todo!(),
+            Instruction::CSW(rdindex, rs1index, cuimmediate) => {
+                Instruction::SW(rdindex, rs1index, cuimmediate)
+            }
+            Instruction::CFSW(_rdindex, _rs1index, _cuimmediate) => todo!(),
+            Instruction::CSD(_rdindex, _rs1index, _cuimmediate) => todo!(),
+            Instruction::CNOP(_rdindex, _cnzimmediate) => todo!(),
+            Instruction::CADDI(rdindex, cnzimmediate) => {
+                Instruction::ADDI(rdindex, rdindex, cnzimmediate)
+            }
+            Instruction::CJAL(cjimmediate) => Instruction::JAL(1, cjimmediate),
+            Instruction::CLI(rdindex, cimmediate) => Instruction::ADDI(rdindex, 0, cimmediate),
+            Instruction::CADDI16SP(_rdindex, cnzimmediate) => Instruction::ADDI(2, 2, cnzimmediate),
+            Instruction::CLUI(rdindex, cnzimmediate) => Instruction::LUI(rdindex, cnzimmediate),
+            Instruction::CSRLI(rdindex, cnzuimmediate) => {
+                Instruction::SRLI(rdindex, rdindex, cnzuimmediate)
+            }
+            Instruction::CSRAI(rdindex, cnzuimmediate) => {
+                Instruction::SRAI(rdindex, rdindex, cnzuimmediate)
+            }
+            Instruction::CANDI(rdindex, cnzuimmediate) => {
+                Instruction::ANDI(rdindex, rdindex, cnzuimmediate)
+            }
+            Instruction::CSUB(rdindex, rs2index) => Instruction::SUB(rdindex, rdindex, rs2index),
+            Instruction::CXOR(rdindex, rs2index) => Instruction::XOR(rdindex, rdindex, rs2index),
+            Instruction::COR(rdindex, rs2index) => Instruction::OR(rdindex, rdindex, rs2index),
+            Instruction::CAND(rdindex, rs2index) => Instruction::AND(rdindex, rdindex, rs2index),
+            Instruction::CJ(cjimmediate) => Instruction::JAL(0, cjimmediate),
+            Instruction::CBEQZ(rs1index, cimmediate) => Instruction::BEQ(rs1index, 0, cimmediate),
+            Instruction::CBNEZ(rs1index, cimmediate) => Instruction::BNE(rs1index, 0, cimmediate),
+            Instruction::CSLLI(rdindex, cnzuimmediate) => {
+                Instruction::SLLI(rdindex, rdindex, cnzuimmediate)
+            }
+            Instruction::CFLDSP(_rdindex, _cuimmediate) => todo!(),
+            Instruction::CLWSP(rdindex, cuimmediate) => Instruction::LW(rdindex, 2, cuimmediate),
+            Instruction::CFLWSP(_rdindex, _cuimmediate) => todo!(),
+            Instruction::CJR(rs1index) => Instruction::JALR(0, rs1index, 0),
+            Instruction::CMV(rdindex, rs2index) => Instruction::ADD(rdindex, 0, rs2index),
+            Instruction::CEBREAK() => Instruction::EBREAK(),
+            Instruction::CJALR(rs1index) => Instruction::JALR(1, rs1index, 0),
+            Instruction::CADD(rdindex, rs2index) => Instruction::ADD(rdindex, rdindex, rs2index),
+            Instruction::CFSDSP(_rs2index, _cluimmediate) => todo!(),
+            Instruction::CSWSP(rs2index, cluimmediate) => {
+                Instruction::SW(2, rs2index, cluimmediate)
+            }
+            Instruction::CFSWSP(_rs2index, _cluimmediate) => todo!(),
+            _ => panic!(),
         }
-        Instruction::CFLD(_rdindex, _rs1index, _cuimmediate) => todo!(),
-        Instruction::CLQ(_rdindex, _rs1index, _cuimmediate) => todo!(),
-        Instruction::CLW(rdindex, rs1index, cuimmediate) => {
-            Instruction::LW(rdindex, rs1index, cuimmediate)
-        }
-        Instruction::CFLW(_rdindex, _rs1index, _cuimmediate) => todo!(),
-        Instruction::CLD(_rdindex, _rs1index, _cuimmediate) => todo!(),
-        Instruction::CFSD(_rdindex, _rs1index, _cuimmediate) => todo!(),
-        Instruction::CSQ(_rdindex, _rs1index, _cuimmediate) => todo!(),
-        Instruction::CSW(rdindex, rs1index, cuimmediate) => {
-            Instruction::SW(rdindex, rs1index, cuimmediate)
-        }
-        Instruction::CFSW(_rdindex, _rs1index, _cuimmediate) => todo!(),
-        Instruction::CSD(_rdindex, _rs1index, _cuimmediate) => todo!(),
-        Instruction::CNOP(_rdindex, _cnzimmediate) => todo!(),
-        Instruction::CADDI(rdindex, cnzimmediate) => {
-            Instruction::ADDI(rdindex, rdindex, cnzimmediate)
-        }
-        Instruction::CJAL(cjimmediate) => Instruction::JAL(1, cjimmediate),
-        Instruction::CLI(rdindex, cimmediate) => Instruction::ADDI(rdindex, 0, cimmediate),
-        Instruction::CADDI16SP(_rdindex, cnzimmediate) => Instruction::ADDI(2, 2, cnzimmediate),
-        Instruction::CLUI(rdindex, cnzimmediate) => Instruction::LUI(rdindex, cnzimmediate),
-        Instruction::CSRLI(rdindex, cnzuimmediate) => {
-            Instruction::SRLI(rdindex, rdindex, cnzuimmediate)
-        }
-        Instruction::CSRAI(rdindex, cnzuimmediate) => {
-            Instruction::SRAI(rdindex, rdindex, cnzuimmediate)
-        }
-        Instruction::CANDI(rdindex, cnzuimmediate) => {
-            Instruction::ANDI(rdindex, rdindex, cnzuimmediate)
-        }
-        Instruction::CSUB(rdindex, rs2index) => Instruction::SUB(rdindex, rdindex, rs2index),
-        Instruction::CXOR(rdindex, rs2index) => Instruction::XOR(rdindex, rdindex, rs2index),
-        Instruction::COR(rdindex, rs2index) => Instruction::OR(rdindex, rdindex, rs2index),
-        Instruction::CAND(rdindex, rs2index) => Instruction::AND(rdindex, rdindex, rs2index),
-        Instruction::CJ(cjimmediate) => Instruction::JAL(0, cjimmediate),
-        Instruction::CBEQZ(rs1index, cimmediate) => Instruction::BEQ(rs1index, 0, cimmediate),
-        Instruction::CBNEZ(rs1index, cimmediate) => Instruction::BNE(rs1index, 0, cimmediate),
-        Instruction::CSLLI(rdindex, cnzuimmediate) => {
-            Instruction::SLLI(rdindex, rdindex, cnzuimmediate)
-        }
-        Instruction::CFLDSP(_rdindex, _cuimmediate) => todo!(),
-        Instruction::CLWSP(rdindex, cuimmediate) => Instruction::LW(rdindex, 2, cuimmediate),
-        Instruction::CFLWSP(_rdindex, _cuimmediate) => todo!(),
-        Instruction::CJR(rs1index) => Instruction::JALR(0, rs1index, 0),
-        Instruction::CMV(rdindex, rs2index) => Instruction::ADD(rdindex, 0, rs2index),
-        Instruction::CEBREAK() => Instruction::EBREAK(),
-        Instruction::CJALR(rs1index) => Instruction::JALR(1, rs1index, 0),
-        Instruction::CADD(rdindex, rs2index) => Instruction::ADD(rdindex, rdindex, rs2index),
-        Instruction::CFSDSP(_rs2index, _cluimmediate) => todo!(),
-        Instruction::CSWSP(rs2index, cluimmediate) => Instruction::SW(2, rs2index, cluimmediate),
-        Instruction::CFSWSP(_rs2index, _cluimmediate) => todo!(),
-        _ => panic!(),
     }
 }
 

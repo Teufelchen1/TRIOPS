@@ -1,5 +1,4 @@
-use crate::decoder::{bit_from_to, Immediate, RDindex, RS1index};
-use crate::instructions::Instruction;
+use crate::instructions::{bit_from_to, Immediate, Instruction, RDindex, RS1index};
 
 #[derive(Debug, PartialEq)]
 pub enum OpCode {
@@ -13,7 +12,7 @@ pub enum OpCode {
     FSWSP,
 }
 
-fn get_opcode(instruction: u32) -> Result<OpCode, &'static str> {
+fn get_opcode(instruction: u32) -> anyhow::Result<OpCode> {
     match instruction >> 13 {
         0b000 => Ok(OpCode::SLLI),
         0b001 => Ok(OpCode::FLDSP),
@@ -23,7 +22,7 @@ fn get_opcode(instruction: u32) -> Result<OpCode, &'static str> {
         0b101 => Ok(OpCode::FSDSP),
         0b110 => Ok(OpCode::SWSP),
         0b111 => Ok(OpCode::FSWSP),
-        _ => Err("Invalid q2 opcode"),
+        _ => Err(anyhow::anyhow!("Invalid q2 opcode")),
     }
 }
 
@@ -57,7 +56,7 @@ fn get_shamt(inst: u32) -> i32 {
     (((inst >> 2) & 0b1_1111) + bit_from_to(inst, 12, 5)) as i32
 }
 
-pub fn decode(instruction: u32) -> Result<Instruction, &'static str> {
+pub fn decode(instruction: u32) -> anyhow::Result<Instruction> {
     let op = get_opcode(instruction)?;
     match op {
         OpCode::SLLI => {
@@ -65,13 +64,13 @@ pub fn decode(instruction: u32) -> Result<Instruction, &'static str> {
             let imm = get_shamt(instruction);
             Ok(Instruction::CSLLI(rdindex, imm))
         }
-        OpCode::FLDSP => Err("FLDSP not implemented"),
+        OpCode::FLDSP => Err(anyhow::anyhow!("FLDSP not implemented")),
         OpCode::LWSP => {
             let rdindex = get_rd(instruction);
             let imm = get_ci_offset(instruction);
             Ok(Instruction::CLWSP(rdindex, imm))
         }
-        OpCode::FLWSP => Err("FLWSP not implemented"),
+        OpCode::FLWSP => Err(anyhow::anyhow!("FLWSP not implemented")),
         OpCode::MISC => {
             let rdindex = get_rd(instruction);
             let rs1index = get_rs(instruction);
@@ -88,12 +87,12 @@ pub fn decode(instruction: u32) -> Result<Instruction, &'static str> {
                 Ok(Instruction::CADD(rdindex, rs1index))
             }
         }
-        OpCode::FSDSP => Err("FSDSP not implemented"),
+        OpCode::FSDSP => Err(anyhow::anyhow!("FSDSP not implemented")),
         OpCode::SWSP => {
             let rsindex = get_rs(instruction);
             let imm = get_css_offset(instruction);
             Ok(Instruction::CSWSP(rsindex, imm))
         }
-        OpCode::FSWSP => Err("FSWSP not implemented"),
+        OpCode::FSWSP => Err(anyhow::anyhow!("FSWSP not implemented")),
     }
 }

@@ -299,7 +299,7 @@ pub fn tui_loop<'a>(
                 }
             }
         } else if auto_step {
-            for _ in 0..20 {
+            for _ in 0..50 {
                 let ok = match cpu.step() {
                     Ok(ok) => ok,
                     Err(err) => panic!(

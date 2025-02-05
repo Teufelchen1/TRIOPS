@@ -1,6 +1,4 @@
-use crate::decoder::{bit_from_to, Immediate, RDindex, RS1index};
-use crate::instructions::Instruction;
-use crate::utils::sign_extend;
+use crate::instructions::{bit_from_to, sign_extend, Immediate, Instruction, RDindex, RS1index};
 
 #[derive(Debug, PartialEq)]
 enum OpCode {
@@ -69,7 +67,7 @@ fn get_rs(inst: u32) -> RS1index {
     (((inst >> 7) & 0b111) + 8) as RS1index
 }
 
-fn get_opcode(instruction: u32) -> Result<OpCode, &'static str> {
+fn get_opcode(instruction: u32) -> anyhow::Result<OpCode> {
     match instruction >> 13 {
         0b000 => Ok(OpCode::ADDI),
         0b001 => Ok(OpCode::JAL),
@@ -79,11 +77,11 @@ fn get_opcode(instruction: u32) -> Result<OpCode, &'static str> {
         0b101 => Ok(OpCode::J),
         0b110 => Ok(OpCode::BEQZ),
         0b111 => Ok(OpCode::BNEZ),
-        _ => Err("Invalid q1 opcode"),
+        _ => Err(anyhow::anyhow!("Invalid q1 opcode")),
     }
 }
 
-pub fn decode(instruction: u32) -> Result<Instruction, &'static str> {
+pub fn decode(instruction: u32) -> anyhow::Result<Instruction> {
     let op = get_opcode(instruction)?;
     match op {
         OpCode::ADDI => {
