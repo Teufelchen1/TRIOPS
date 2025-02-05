@@ -15,7 +15,6 @@ mod ui;
 use ui::tui_loop;
 
 mod periph;
-use crate::periph::{Uart, UartBuffered, UartTty};
 
 mod instructions;
 
@@ -79,9 +78,9 @@ fn main() {
 
     // Not headless? Start TUI!
     if !args.headless {
-        let (tx, tui_reader): (mpsc::Sender<char>, mpsc::Receiver<char>) = mpsc::channel();
-        let (tui_writer, rx): (mpsc::Sender<char>, mpsc::Receiver<char>) = mpsc::channel();
-        let mut buffered = Uart::default(UartBuffered::new(rx, tx));
+        let (tx, tui_reader): (mpsc::Sender<u8>, mpsc::Receiver<u8>) = mpsc::channel();
+        let (tui_writer, rx): (mpsc::Sender<u8>, mpsc::Receiver<u8>) = mpsc::channel();
+        let mut buffered = periph::new_buffered_uart(rx, tx);
         let mut cpu = {
             if args.bin {
                 let entry = usize_from_str(&args.entryaddress);
@@ -97,7 +96,7 @@ fn main() {
         return;
     }
 
-    let mut tty = Uart::default(UartTty::new());
+    let mut tty = periph::new_stdio_uart();
     let mut cpu = {
         if args.bin {
             let entry = usize_from_str(&args.entryaddress);
