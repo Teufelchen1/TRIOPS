@@ -1,4 +1,4 @@
-use crate::periph::{MmapPeripheral, PeripheralBackend};
+use super::{MmapPeripheral, PeripheralBackend};
 
 #[allow(clippy::struct_excessive_bools)]
 pub struct Uart<B> {

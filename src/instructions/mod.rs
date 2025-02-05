@@ -37,7 +37,7 @@ pub fn bit_from_to(inst: u32, from: u32, to: u32) -> u32 {
     ((inst >> from) & 1) << to
 }
 
-pub fn decode(instruction: u32) -> Result<Instruction, &'static str> {
+pub fn decode(instruction: u32) -> anyhow::Result<Instruction> {
     let encoding_quadrant = instruction & 0b11;
     match encoding_quadrant {
         0 => {

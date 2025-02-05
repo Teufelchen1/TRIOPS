@@ -43,17 +43,17 @@ impl<'trait_periph> Memory<'trait_periph> {
         self.rom_base <= addr && addr < self.rom_limit
     }
 
-    pub fn read_byte(&self, addr: usize) -> u32 {
+    pub fn read_byte(&self, addr: usize) -> anyhow::Result<u32> {
         if self.is_ram(addr) {
             let index = addr - self.ram_base;
-            return u32::from(self.ram[index]);
+            return Ok(u32::from(self.ram[index]));
         }
         if self.is_rom(addr) {
             let index = addr - self.rom_base;
-            return u32::from(self.rom[index]);
+            return Ok(u32::from(self.rom[index]));
         }
         if self.is_uart(addr) {
-            return u32::from(self.uart.read(addr - self.uart_base));
+            return Ok(u32::from(self.uart.read(addr - self.uart_base)));
         }
 
         // FIXME: Temporal hack to get RIOT happy in-time for the 1.0 release
@@ -61,27 +61,31 @@ impl<'trait_periph> Memory<'trait_periph> {
         match addr {
             // PLIC
             0x0C00_0000..=0x0FFF_FFFF => {
-                return 0xFF;
+                return Ok(0x00);
             }
             // PRCI
             0x1000_8000..=0x1000_800F => {
                 // RIOT uses hfrosccfg, hfxosccfg, pllcfg, plloutdiv, procmoncfg
-                return 0xFF;
+                return Ok(0xFF);
             }
             // GPIO
             0x1001_2000..=0x1001_2FFF => {
-                return 0xFF;
+                return Ok(0xFF);
             }
             _ => (),
         }
 
-        panic!("Memory read outside memory map: 0x{addr:X}");
+        Err(anyhow::anyhow!(
+            "Memory read outside memory map: 0x{addr:X}"
+        ))
     }
-    pub fn read_halfword(&self, index: usize) -> u32 {
-        (self.read_byte(index + 1) << 8) + self.read_byte(index)
+    pub fn read_halfword(&self, index: usize) -> anyhow::Result<u32> {
+        let halfword = (self.read_byte(index + 1)? << 8) + self.read_byte(index)?;
+        Ok(halfword)
     }
-    pub fn read_word(&self, index: usize) -> u32 {
-        (self.read_halfword(index + 2) << 16) + self.read_halfword(index)
+    pub fn read_word(&self, index: usize) -> anyhow::Result<u32> {
+        let word = (self.read_halfword(index + 2)? << 16) + self.read_halfword(index)?;
+        Ok(word)
     }
     pub fn write_byte(&mut self, addr: usize, value: u32) {
         if self.is_ram(addr) {
