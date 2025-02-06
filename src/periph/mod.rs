@@ -12,6 +12,7 @@ use uart::Uart;
 pub trait MmapPeripheral {
     fn read(&self, offset: usize) -> u8;
     fn write(&mut self, offset: usize, value: u8);
+    fn pending_interrupt(&self) -> Option<u32>;
 }
 
 trait PeripheralBackend {

@@ -7,6 +7,7 @@
 #![allow(clippy::cast_possible_wrap)]
 #![allow(clippy::cast_possible_truncation)]
 #![allow(clippy::cast_sign_loss)]
+use std::process::Command;
 use std::sync::mpsc;
 
 mod ui;
@@ -45,14 +46,32 @@ fn main() {
         loop {
             let ok = match cpu.step() {
                 Ok(ok) => ok,
-                Err(err) => panic!(
-                    "{}",
-                    &format!(
-                        "Failed to step at address 0x{:X}: {:}",
-                        cpu.register.pc, err
+                Err(err) => {
+                    println!("\nUnrecoverable error, last 5 instructions:");
+                    for data in cpu.last_n_instructions(10) {
+                        if let Some((addr, i)) = data {
+                            println!("0x{addr:08X}:{}", i.print());
+                        }
+                    }
+                    panic!(
+                        "\n{}",
+                        &format!(
+                            "Failed to step at address 0x{:08X}: {:}",
+                            cpu.register.pc, err
+                        )
                     )
-                ),
+                }
             };
+            // if cpu.register.pc == 0x200112ba {
+            //     println!("a0: {}, a1: 0x{:08X}", cpu.register.read(10),cpu.register.read(11));
+            // }
+            // print!("{:}", String::from_utf8_lossy(
+            //     &Command::new("riscv64-elf-addr2line")
+            //     .arg("-e")
+            //     .arg("./default.elf")
+            //     .arg(format!("0x{:08X}", cpu.register.pc))
+            //     .output()
+            //     .expect("failed to execute process").stdout));
             if !ok {
                 break;
             }
@@ -83,6 +102,9 @@ fn main() {
         };
 
         // Terminated TUI also terminates main()
-        tui_loop(&mut cpu, &tui_reader, &tui_writer).expect("Well, your TUI crashed");
+        match tui_loop(&mut cpu, &tui_reader, &tui_writer) {
+            Ok(_) => (),
+            Err(err) => panic!("{:}", err),
+        }
     }
 }

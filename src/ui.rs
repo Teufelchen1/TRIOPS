@@ -302,13 +302,15 @@ pub fn tui_loop<'a>(
             for _ in 0..50 {
                 let ok = match cpu.step() {
                     Ok(ok) => ok,
-                    Err(err) => panic!(
-                        "{}",
-                        &format!(
-                            "Failed to step at address 0x{:X}: {:}",
-                            cpu.register.pc, err
-                        )
-                    ),
+                    Err(err) => {
+                        return Err(anyhow::anyhow!(
+                            "{}",
+                            &format!(
+                                "Failed to step at address 0x{:X}: {:}",
+                                cpu.register.pc, err
+                            )
+                        ))
+                    }
                 };
                 if !ok {
                     break 'outer;

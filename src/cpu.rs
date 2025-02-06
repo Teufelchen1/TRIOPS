@@ -21,6 +21,7 @@ const LOG_LENGTH: usize = 40;
 pub struct CPU<'trait_periph> {
     pub register: Register,
     pub memory: Memory<'trait_periph>,
+    waits_for_interrupt: bool,
     instruction_log: [Option<(usize, Instruction)>; LOG_LENGTH],
 }
 
@@ -29,6 +30,7 @@ impl<'trait_periph> CPU<'trait_periph> {
         let mut cpu = Self {
             register: Register::default(),
             memory: Memory::default_hifive(uart),
+            waits_for_interrupt: false,
             instruction_log: array::from_fn(|_| None),
         };
         cpu.register.csr.mie = 1;
@@ -75,6 +77,7 @@ impl<'trait_periph> CPU<'trait_periph> {
         let mut cpu = Self {
             register: Register::default(),
             memory: Memory::default_hifive(uart),
+            waits_for_interrupt: false,
             instruction_log: array::from_fn(|_| None),
         };
 
@@ -155,6 +158,20 @@ impl<'trait_periph> CPU<'trait_periph> {
     /// Returns true for all instructions except when executing ebreak.
     /// ebreak is used to signaling the termination of the programm.
     pub fn step(&mut self) -> anyhow::Result<bool> {
+        //                                  MIE
+        if self.waits_for_interrupt || (self.register.csr.mstatus & 0b1000) > 0 {
+            if let Some(_reason) = self.memory.pending_interrupt() {
+                //println!("Interrupt!");
+                self.register.csr.mie = 0;
+                self.register.csr.mepc = self.register.pc;
+                // Machine external interrupt
+                self.register.csr.mcause = 11;
+                // Set interrupt bit
+                self.register.csr.mcause |= 1 << 31;
+                self.register.pc = self.register.csr.mtvec;
+            }
+        }
+
         let (addr, inst) = self.current_instruction()?;
         exec(&mut self.register, &mut self.memory, &inst, true, true)?;
         self.instruction_log.rotate_left(1);

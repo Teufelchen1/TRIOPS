@@ -177,4 +177,11 @@ impl<B: PeripheralBackend> MmapPeripheral for Uart<B> {
     fn write(&mut self, offset: usize, value: u8) {
         self.write_uart(offset, value);
     }
+    fn pending_interrupt(&self) -> Option<u32> {
+        if self.backend.has_data() {
+            Some(0)
+        } else {
+            None
+        }
+    }
 }

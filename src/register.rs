@@ -103,7 +103,7 @@ impl CSR {
                 panic!("Attempt to write to read-only CSR!");
             }
             0x300 => {
-                self.mstatus = 0;
+                self.mstatus = value;
             }
             0x301 => {
                 /* WARL / zero indicates misa is not implemented */
