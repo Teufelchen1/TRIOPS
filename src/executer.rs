@@ -179,19 +179,19 @@ pub fn exec(
             let rs1: RS1value = register_file.read(rs1index);
             let rs2: RS2value = register_file.read(rs2index);
             let target = add_signed!(rs1, simmediate) as usize;
-            memory.write_byte(target, rs2);
+            memory.write_byte(target, rs2)?;
         }
         Instruction::SH(rs1index, rs2index, simmediate) => {
             let rs1: RS1value = register_file.read(rs1index);
             let rs2: RS2value = register_file.read(rs2index);
             let target = add_signed!(rs1, simmediate) as usize;
-            memory.write_halfword(target, rs2);
+            memory.write_halfword(target, rs2)?;
         }
         Instruction::SW(rs1index, rs2index, simmediate) => {
             let rs1: RS1value = register_file.read(rs1index);
             let rs2: RS2value = register_file.read(rs2index);
             let target = add_signed!(rs1, simmediate) as usize;
-            memory.write_word(target, rs2);
+            memory.write_word(target, rs2)?;
         }
         Instruction::ADDI(rdindex, rs1index, iimmediate) => {
             let rs1: RS1value = register_file.read(rs1index);
@@ -302,7 +302,7 @@ pub fn exec(
         }
         Instruction::FENCE(_rdindex, _rs1index, _iimmediate) => { /* Nop */ }
         Instruction::ECALL() => {
-            register_file.csr.mepc = register_file.pc;
+            register_file.csr.mepc = instruction_address;
             register_file.csr.mcause = 11; // Environment call from M-Mode
             register_file.pc = register_file.csr.mtvec;
         }
@@ -446,7 +446,7 @@ pub fn exec(
             register_file.write(rdindex, 1);
             if let Some(reservation) = memory.reservation {
                 if reservation.0 == addr && reservation.1 == value {
-                    memory.write_word(addr, rs2);
+                    memory.write_word(addr, rs2)?;
                     register_file.write(rdindex, 0);
                 }
             }
@@ -458,7 +458,7 @@ pub fn exec(
             let data = memory.read_word(addr_rs1 as usize)?;
             register_file.write(rdindex, data);
             let result = org;
-            memory.write_word(addr_rs1 as usize, result);
+            memory.write_word(addr_rs1 as usize, result)?;
         }
         Instruction::AMOADDW(rdindex, rs1index, rs2index) => {
             let addr_rs1: RS1value = register_file.read(rs1index);
@@ -466,7 +466,7 @@ pub fn exec(
             let data = memory.read_word(addr_rs1 as usize)?;
             register_file.write(rdindex, data);
             let result = (data as i32).wrapping_add(org as i32);
-            memory.write_word(addr_rs1 as usize, result as u32);
+            memory.write_word(addr_rs1 as usize, result as u32)?;
         }
         Instruction::AMOXORW(rdindex, rs1index, rs2index) => {
             let addr_rs1: RS1value = register_file.read(rs1index);
@@ -474,7 +474,7 @@ pub fn exec(
             let data = memory.read_word(addr_rs1 as usize)?;
             register_file.write(rdindex, data);
             let result = data ^ org;
-            memory.write_word(addr_rs1 as usize, result);
+            memory.write_word(addr_rs1 as usize, result)?;
         }
         Instruction::AMOANDW(rdindex, rs1index, rs2index) => {
             let addr_rs1: RS1value = register_file.read(rs1index);
@@ -482,7 +482,7 @@ pub fn exec(
             let data = memory.read_word(addr_rs1 as usize)?;
             register_file.write(rdindex, data);
             let result = data & org;
-            memory.write_word(addr_rs1 as usize, result);
+            memory.write_word(addr_rs1 as usize, result)?;
         }
         Instruction::AMOORW(rdindex, rs1index, rs2index) => {
             let addr_rs1: RS1value = register_file.read(rs1index);
@@ -490,7 +490,7 @@ pub fn exec(
             let data = memory.read_word(addr_rs1 as usize)?;
             register_file.write(rdindex, data);
             let result = data | org;
-            memory.write_word(addr_rs1 as usize, result);
+            memory.write_word(addr_rs1 as usize, result)?;
         }
         Instruction::AMOMINW(rdindex, rs1index, rs2index) => {
             let addr_rs1: RS1value = register_file.read(rs1index);
@@ -498,7 +498,7 @@ pub fn exec(
             let data = memory.read_word(addr_rs1 as usize)?;
             register_file.write(rdindex, data);
             let result = min(data as i32, org as i32) as u32;
-            memory.write_word(addr_rs1 as usize, result);
+            memory.write_word(addr_rs1 as usize, result)?;
         }
         Instruction::AMOMAXW(rdindex, rs1index, rs2index) => {
             let addr_rs1: RS1value = register_file.read(rs1index);
@@ -506,7 +506,7 @@ pub fn exec(
             let data = memory.read_word(addr_rs1 as usize)?;
             register_file.write(rdindex, data);
             let result = max(data as i32, org as i32) as u32;
-            memory.write_word(addr_rs1 as usize, result);
+            memory.write_word(addr_rs1 as usize, result)?;
         }
         Instruction::AMOMINUW(rdindex, rs1index, rs2index) => {
             let addr_rs1: RS1value = register_file.read(rs1index);
@@ -514,7 +514,7 @@ pub fn exec(
             let data = memory.read_word(addr_rs1 as usize)?;
             register_file.write(rdindex, data);
             let result = min(data, org);
-            memory.write_word(addr_rs1 as usize, result);
+            memory.write_word(addr_rs1 as usize, result)?;
         }
         Instruction::AMOMAXUW(rdindex, rs1index, rs2index) => {
             let addr_rs1: RS1value = register_file.read(rs1index);
@@ -522,13 +522,9 @@ pub fn exec(
             let data = memory.read_word(addr_rs1 as usize)?;
             register_file.write(rdindex, data);
             let result = max(data, org);
-            memory.write_word(addr_rs1 as usize, result);
+            memory.write_word(addr_rs1 as usize, result)?;
         }
-        Instruction::WFI() => {
-            // Temporal hack to make the RIOT experience nicer
-            register_file.csr.mie = 1;
-            register_file.pc -= 4;
-        }
+        Instruction::WFI() => {}
         _ => todo!("{:?}", actual_instruction),
     }
     Ok(())

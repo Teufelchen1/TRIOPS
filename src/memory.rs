@@ -31,6 +31,10 @@ impl<'trait_periph> Memory<'trait_periph> {
         }
     }
 
+    pub fn pending_interrupt(&self) -> Option<u32> {
+        self.uart.pending_interrupt()
+    }
+
     pub fn is_uart(&self, addr: usize) -> bool {
         self.uart_base <= addr && addr < self.uart_limit
     }
@@ -60,24 +64,20 @@ impl<'trait_periph> Memory<'trait_periph> {
         #[allow(clippy::match_same_arms)]
         match addr {
             // PLIC
-            0x0C00_0000..=0x0FFF_FFFF => {
-                return Ok(0x00);
-            }
+            0x0C00_0000..=0x0FFF_FFFF => Ok(0x00),
+            // RTT
+            0x1000_0040..=0x1000_0080 => Ok(0x00),
             // PRCI
             0x1000_8000..=0x1000_800F => {
                 // RIOT uses hfrosccfg, hfxosccfg, pllcfg, plloutdiv, procmoncfg
-                return Ok(0xFF);
+                Ok(0xFF)
             }
             // GPIO
-            0x1001_2000..=0x1001_2FFF => {
-                return Ok(0xFF);
-            }
-            _ => (),
+            0x1001_2000..=0x1001_2FFF => Ok(0xFF),
+            _ => Err(anyhow::anyhow!(
+                "Memory: attemped read outside memory map at address: 0x{addr:08X}"
+            )),
         }
-
-        Err(anyhow::anyhow!(
-            "Memory read outside memory map: 0x{addr:X}"
-        ))
     }
     pub fn read_halfword(&self, index: usize) -> anyhow::Result<u32> {
         let halfword = (self.read_byte(index + 1)? << 8) + self.read_byte(index)?;
@@ -87,43 +87,45 @@ impl<'trait_periph> Memory<'trait_periph> {
         let word = (self.read_halfword(index + 2)? << 16) + self.read_halfword(index)?;
         Ok(word)
     }
-    pub fn write_byte(&mut self, addr: usize, value: u32) {
+    pub fn write_byte(&mut self, addr: usize, value: u32) -> anyhow::Result<()> {
         if self.is_ram(addr) {
             let index = addr - self.ram_base;
             self.ram[index] = (value & 0xFF) as u8;
-            return;
+            return Ok(());
         }
         if self.is_uart(addr) {
-            return self.uart.write(addr - self.uart_base, (value & 0xFF) as u8);
+            self.uart.write(addr - self.uart_base, (value & 0xFF) as u8);
+            return Ok(());
         }
 
         // FIXME: Temporal hack to get RIOT happy in-time for the 1.0 release
         #[allow(clippy::match_same_arms)]
         match addr {
             // PLIC
-            0x0C00_0000..=0x0FFF_FFFF => {
-                return;
-            }
+            0x0C20_0004 => Ok(()),
+            0x0C00_0000..=0x0FFF_FFFF => Ok(()),
+            // RTT
+            0x1000_0040..=0x1000_0080 => Ok(()),
             // PRCI
             0x1000_8000..=0x1000_800F => {
                 // RIOT uses hfrosccfg, hfxosccfg, pllcfg, plloutdiv, procmoncfg
-                return;
+                Ok(())
             }
             // GPIO
-            0x1001_2000..=0x1001_2FFF => {
-                return;
-            }
-            _ => (),
+            0x1001_2000..=0x1001_2FFF => Ok(()),
+            _ => Err(anyhow::anyhow!(
+                "Memory: attemped write outside writable memory map at address: 0x{addr:08X}"
+            )),
         }
-
-        panic!("Memory write outside writable memory map: 0x{addr:X}");
     }
-    pub fn write_halfword(&mut self, index: usize, value: u32) {
-        self.write_byte(index, value);
-        self.write_byte(index + 1, value >> 8);
+    pub fn write_halfword(&mut self, index: usize, value: u32) -> anyhow::Result<()> {
+        self.write_byte(index, value)?;
+        self.write_byte(index + 1, value >> 8)?;
+        Ok(())
     }
-    pub fn write_word(&mut self, index: usize, value: u32) {
-        self.write_halfword(index, value);
-        self.write_halfword(index + 2, value >> 16);
+    pub fn write_word(&mut self, index: usize, value: u32) -> anyhow::Result<()> {
+        self.write_halfword(index, value)?;
+        self.write_halfword(index + 2, value >> 16)?;
+        Ok(())
     }
 }
