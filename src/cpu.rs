@@ -1,6 +1,6 @@
 //! This file is scoped around the `CPU` struct.
 //! If something can not be `impl CPU` it is considered out of scope.
-use std::array;
+use std::{time, thread, array};
 
 use crate::instructions::{decode, Instruction};
 
@@ -10,7 +10,7 @@ use crate::memory::Memory;
 
 use crate::periph::MmapPeripheral;
 
-use crate::register::Register;
+use crate::register::{self, Register};
 
 use elf::abi;
 use elf::endian::AnyEndian;
@@ -155,27 +155,40 @@ impl<'trait_periph> CPU<'trait_periph> {
         }
     }
 
+    fn exception(&mut self, reason: register::MCAUSE) {
+        self.register.csr.mstatus_set_mpie(self.register.csr.mstatus_get_mie());
+        self.register.csr.mstatus_set_mie(false);
+        self.register.csr.mepc = self.register.pc;
+        self.register.csr.mcause = reason as u32;
+        self.register.pc = self.register.csr.mtvec;
+        self.waits_for_interrupt = false;
+    }
+
     /// Returns true for all instructions except when executing ebreak.
     /// ebreak is used to signaling the termination of the programm.
     pub fn step(&mut self) -> anyhow::Result<bool> {
-        //                                  MIE
-        if self.waits_for_interrupt || (self.register.csr.mstatus & 0b1000) > 0 {
+        // Interrupts are implicit enable when stalling the cpu due to WFI
+        // Or directly enabled via MIE
+        if self.waits_for_interrupt || self.register.csr.mstatus_get_mie() {
             if let Some(_reason) = self.memory.pending_interrupt() {
-                //println!("Interrupt!");
-                self.register.csr.mie = 0;
-                self.register.csr.mepc = self.register.pc;
-                // Machine external interrupt
-                self.register.csr.mcause = 11;
-                // Set interrupt bit
-                self.register.csr.mcause |= 1 << 31;
-                self.register.pc = self.register.csr.mtvec;
+                self.exception(register::MCAUSE::MACHINE_EXTERNAL_INTERRUPT);
             }
         }
 
-        let (addr, inst) = self.current_instruction()?;
-        exec(&mut self.register, &mut self.memory, &inst, true, true)?;
-        self.instruction_log.rotate_left(1);
-        self.instruction_log[LOG_LENGTH - 1] = Some((addr, inst.clone()));
-        Ok(!matches!(inst, Instruction::EBREAK()))
+        // Stall when waiting for interrupts
+        if self.waits_for_interrupt {
+            // TODO: Replace with signaling method, like conv + mutex
+            thread::sleep(time::Duration::from_millis(10));
+            Ok(true)
+        } else {
+            let (addr, inst) = self.current_instruction()?;
+            exec(&mut self.register, &mut self.memory, &inst, true, true)?;
+            self.instruction_log.rotate_left(1);
+            self.instruction_log[LOG_LENGTH - 1] = Some((addr, inst.clone()));
+            if matches!(inst, Instruction::WFI()) {
+                self.waits_for_interrupt = true;
+            }
+            Ok(!matches!(inst, Instruction::EBREAK()))
+        }
     }
 }

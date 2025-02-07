@@ -525,9 +525,6 @@ pub fn exec(
             memory.write_word(addr_rs1 as usize, result)?
         }
         Instruction::WFI() => {
-            // Temporal hack to make the RIOT experience nicer
-            register_file.csr.mie = 1;
-            register_file.pc -= 4;
         }
         _ => todo!("{:?}", actual_instruction),
     }
