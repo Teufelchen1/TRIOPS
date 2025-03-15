@@ -64,6 +64,10 @@ impl<'trait_periph> Memory<'trait_periph> {
         #[allow(clippy::match_same_arms)]
         match addr {
             // PLIC
+            0x0C20_0004 => {
+                // Always ack UART0 interrupt for now
+                Ok(0x03)
+            }
             0x0C00_0000..=0x0FFF_FFFF => Ok(0x00),
             // RTT
             0x1000_0040..=0x1000_0080 => Ok(0x00),
@@ -102,7 +106,6 @@ impl<'trait_periph> Memory<'trait_periph> {
         #[allow(clippy::match_same_arms)]
         match addr {
             // PLIC
-            0x0C20_0004 => Ok(()),
             0x0C00_0000..=0x0FFF_FFFF => Ok(()),
             // RTT
             0x1000_0040..=0x1000_0080 => Ok(()),

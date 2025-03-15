@@ -8,13 +8,11 @@ mod register;
 
 use crate::instructions::{decode, Instruction};
 
-use executer::exec;
-
 use memory::Memory;
 
 use crate::periph::MmapPeripheral;
 
-pub use register::{Register, index_to_name};
+pub use register::{index_to_name, Register};
 
 use elf::abi;
 use elf::endian::AnyEndian;
@@ -25,7 +23,7 @@ const LOG_LENGTH: usize = 40;
 pub struct CPU<'trait_periph> {
     pub register: Register,
     pub memory: Memory<'trait_periph>,
-    waits_for_interrupt: bool,
+    pub waits_for_interrupt: bool,
     instruction_log: [Option<(usize, Instruction)>; LOG_LENGTH],
 }
 
@@ -184,16 +182,13 @@ impl<'trait_periph> CPU<'trait_periph> {
         // Stall when waiting for interrupts
         if self.waits_for_interrupt {
             // TODO: Replace with signaling method, like conv + mutex
-            thread::sleep(time::Duration::from_millis(10));
+            thread::sleep(time::Duration::from_millis(50));
             Ok(true)
         } else {
             let (addr, inst) = self.current_instruction()?;
-            exec(&mut self.register, &mut self.memory, &inst, true, true)?;
+            self.exec(&inst, true, true)?;
             self.instruction_log.rotate_left(1);
             self.instruction_log[LOG_LENGTH - 1] = Some((addr, inst.clone()));
-            if matches!(inst, Instruction::WFI()) {
-                self.waits_for_interrupt = true;
-            }
             Ok(!matches!(inst, Instruction::EBREAK()))
         }
     }

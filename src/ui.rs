@@ -1,6 +1,6 @@
 //! The terminal user interface is the scope of this file.
-use crate::cpu::CPU;
 use crate::cpu::Register;
+use crate::cpu::CPU;
 use ratatui::{backend::CrosstermBackend, Terminal};
 use std::array;
 use std::io;
@@ -167,7 +167,7 @@ impl ViewState {
             .title(vec![Span::from("I/O")])
             .title_alignment(Alignment::Left);
 
-        if let Ok(msg) = uart_rx.try_recv() {
+        while let Ok(msg) = uart_rx.try_recv() {
             self.uart.push(msg as char);
         }
         let text: &str = &self.uart;
@@ -225,14 +225,14 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
     center
 }
 
+#[allow(clippy::too_many_lines)]
 pub fn tui_loop<'a>(
     cpu: &'a mut CPU<'a>,
     uart_rx: &mpsc::Receiver<u8>,
     uart_tx: &mpsc::Sender<u8>,
 ) -> anyhow::Result<()> {
     enable_raw_mode()?;
-    let stdout = io::stdout();
-    let backend = CrosstermBackend::new(stdout);
+    let backend = CrosstermBackend::new(io::stdout());
     let mut terminal = Terminal::new(backend)?;
     let _ = terminal.clear();
 
@@ -241,11 +241,15 @@ pub fn tui_loop<'a>(
     let mut user_input = String::new();
     let mut insert_mode = false;
     let mut auto_step = false;
+    let mut timeout = 1;
 
     'outer: loop {
         terminal.draw(|f| ui.ui(f, cpu, uart_rx, show_help, insert_mode, &user_input))?;
-
-        if event::poll(Duration::from_millis(20))? {
+        if cpu.waits_for_interrupt && timeout < 2000 {
+            timeout += 10;
+        }
+        if event::poll(Duration::from_millis(timeout))? {
+            timeout = 1;
             if let Event::Key(key) = event::read()? {
                 if insert_mode {
                     match key.code {
@@ -298,8 +302,10 @@ pub fn tui_loop<'a>(
                     }
                 }
             }
-        } else if auto_step {
-            for _ in 0..50 {
+        }
+
+        if auto_step {
+            for _ in 0..80 {
                 let ok = match cpu.step() {
                     Ok(ok) => ok,
                     Err(err) => {
@@ -312,8 +318,13 @@ pub fn tui_loop<'a>(
                         ))
                     }
                 };
+
                 if !ok {
                     break 'outer;
+                }
+
+                if cpu.waits_for_interrupt {
+                    break;
                 }
             }
         }

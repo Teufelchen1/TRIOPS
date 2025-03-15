@@ -54,16 +54,7 @@ fn main() {
                     )
                 }
             };
-            // if cpu.register.pc == 0x200112ba {
-            //     println!("a0: {}, a1: 0x{:08X}", cpu.register.read(10),cpu.register.read(11));
-            // }
-            // print!("{:}", String::from_utf8_lossy(
-            //     &Command::new("riscv64-elf-addr2line")
-            //     .arg("-e")
-            //     .arg("./default.elf")
-            //     .arg(format!("0x{:08X}", cpu.register.pc))
-            //     .output()
-            //     .expect("failed to execute process").stdout));
+
             if !ok {
                 break;
             }
