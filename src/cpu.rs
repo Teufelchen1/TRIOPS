@@ -1,6 +1,6 @@
 //! This file is scoped around the `CPU` struct.
 //! If something can not be `impl CPU` it is considered out of scope.
-use std::{time, thread, array};
+use std::{array, thread, time};
 
 use crate::instructions::{decode, Instruction};
 
@@ -156,7 +156,9 @@ impl<'trait_periph> CPU<'trait_periph> {
     }
 
     fn exception(&mut self, reason: register::MCAUSE) {
-        self.register.csr.mstatus_set_mpie(self.register.csr.mstatus_get_mie());
+        self.register
+            .csr
+            .mstatus_set_mpie(self.register.csr.mstatus_get_mie());
         self.register.csr.mstatus_set_mie(false);
         self.register.csr.mepc = self.register.pc;
         self.register.csr.mcause = reason as u32;
@@ -171,7 +173,7 @@ impl<'trait_periph> CPU<'trait_periph> {
         // Or directly enabled via MIE
         if self.waits_for_interrupt || self.register.csr.mstatus_get_mie() {
             if let Some(_reason) = self.memory.pending_interrupt() {
-                self.exception(register::MCAUSE::MACHINE_EXTERNAL_INTERRUPT);
+                self.exception(register::MCAUSE::MachineExternalInterrupt);
             }
         }
 

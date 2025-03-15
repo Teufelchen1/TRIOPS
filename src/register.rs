@@ -170,17 +170,17 @@ impl CSR {
 
     pub fn mstatus_set_mie(&mut self, value: bool) {
         if value {
-            self.mstatus |=  1 << 3;
+            self.mstatus |= 1 << 3;
         } else {
-            self.mstatus &=  !(1 << 3);
+            self.mstatus &= !(1 << 3);
         }
     }
 
     pub fn mstatus_set_mpie(&mut self, value: bool) {
         if value {
-            self.mstatus |=  1 << 7;
+            self.mstatus |= 1 << 7;
         } else {
-            self.mstatus &=  !(1 << 7);
+            self.mstatus &= !(1 << 7);
         }
     }
 
@@ -188,30 +188,33 @@ impl CSR {
         self.mstatus & (1 << 3) > 0
     }
 
-    pub fn mstatus_get_mpie(&self) -> bool {
+    pub fn _mstatus_get_mpie(&self) -> bool {
         self.mstatus & (1 << 7) > 0
     }
 }
 
+// Machine Cause Register
+// The Interrupt bit (msb, the 31th) is set if the trap was caused by an interrupt.
+#[repr(u32)]
 pub enum MCAUSE {
-    MACHINE_SOFTWARE_INTERRUPT = (1 << 31) + 3,
-    MACHINE_EXTERNAL_INTERRUPT = (1 << 31) + 11,
-    COUNTER_OVERFLOW_INTERRUPT = (1 << 31) + 13,
-    INSTRUCTION_ADDRESS_MISALIGNED = 0,
-    INSTRUCTION_ACCESS_FAULT = 1,
-    ILLEGAL_INSTRUCTION = 2,
-    BREAKPOINT = 3,
-    LOAD_ADDRESS_MISALIGNED = 4,
-    LOAD_ACCESS_FAULT = 5,
-    STORE_ADDRESS_MISALIGNED = 6,
-    STORE_ACCESS_FAULT = 7,
-    ECALL_FROM_U = 8,
-    ECALL_FROM_M = 11,
-    INSTRUCTION_PAGE_FAULT = 12,
-    LOAD_PAGE_FAULT = 13,
-    STORE_PAGE_FAULT = 15,
-    SOFTWARE_CHECK = 18,
-    HARDWARE_ERROR = 19,
+    _MachineSoftwareInterrupt = 0x8000_0000 + 3,
+    MachineExternalInterrupt = 0x8000_0000 + 11,
+    _CounterOverflowInterrupt = 0x8000_0000 + 13,
+    _InstructionAddressMisaligned = 0,
+    _InstructionAccessFault = 1,
+    _IllegalInstruction = 2,
+    _Breakpoint = 3,
+    _LoadAddressMisaligned = 4,
+    _LoadAccessFault = 5,
+    _StoreAddressMisaligned = 6,
+    _StoreAccessFault = 7,
+    _EcallFromUser = 8,
+    _EcallFromMachine = 11,
+    _InstructionPageFault = 12,
+    _LoadPageFault = 13,
+    _StorePageFault = 15,
+    _SoftwareCheck = 18,
+    _HardwareError = 19,
 }
 
 #[derive(Default)]

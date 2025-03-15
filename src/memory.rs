@@ -32,11 +32,7 @@ impl<'trait_periph> Memory<'trait_periph> {
     }
 
     pub fn pending_interrupt(&self) -> Option<u32> {
-        if let Some(reason) = self.uart.pending_interrupt() {
-            Some(reason)
-        } else {
-            None
-        }
+        self.uart.pending_interrupt()
     }
 
     pub fn is_uart(&self, addr: usize) -> bool {
@@ -68,32 +64,9 @@ impl<'trait_periph> Memory<'trait_periph> {
         #[allow(clippy::match_same_arms)]
         match addr {
             // PLIC
-            0x0C20_0004 => {
-                //Ok(0x00)
-                Ok(0x03)
-            }
-            0x0C20_0005 => {
-                //Ok(0x00)
-                Ok(0x00)
-            }
-            0x0C20_0006 => {
-                //Ok(0x00)
-                Ok(0x00)
-            }
-            0x0C20_0007 => {
-                //Ok(0x00)
-                Ok(0x00)
-            }
-            0x0C20_0008..=0x0C20_000B => {
-                Err(anyhow::anyhow!("Uff"))
-                //Ok(0x00)
-            }
-            0x0C20_0009 => Ok(0x00),
-            0x0C20_000A => Ok(0x00),
-            0x0C20_000B => Ok(0x00),
             0x0C00_0000..=0x0FFF_FFFF => Ok(0x00),
             // RTT
-            0x1000_0040..=0x1000_0080 => Ok(0),
+            0x1000_0040..=0x1000_0080 => Ok(0x00),
             // PRCI
             0x1000_8000..=0x1000_800F => {
                 // RIOT uses hfrosccfg, hfxosccfg, pllcfg, plloutdiv, procmoncfg

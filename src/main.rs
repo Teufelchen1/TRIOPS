@@ -7,7 +7,6 @@
 #![allow(clippy::cast_possible_wrap)]
 #![allow(clippy::cast_possible_truncation)]
 #![allow(clippy::cast_sign_loss)]
-use std::process::Command;
 use std::sync::mpsc;
 
 mod ui;
@@ -48,10 +47,9 @@ fn main() {
                 Ok(ok) => ok,
                 Err(err) => {
                     println!("\nUnrecoverable error, last 5 instructions:");
-                    for data in cpu.last_n_instructions(10) {
-                        if let Some((addr, i)) = data {
-                            println!("0x{addr:08X}:{}", i.print());
-                        }
+                    for data in cpu.last_n_instructions(10).iter().flatten() {
+                        let (addr, instruction) = data;
+                        println!("0x{addr:08X}:{}", instruction.print());
                     }
                     panic!(
                         "\n{}",
@@ -103,8 +101,8 @@ fn main() {
 
         // Terminated TUI also terminates main()
         match tui_loop(&mut cpu, &tui_reader, &tui_writer) {
-            Ok(_) => (),
-            Err(err) => panic!("{:}", err),
+            Ok(()) => (),
+            Err(err) => panic!("{err:}"),
         }
     }
 }
