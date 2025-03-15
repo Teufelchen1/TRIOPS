@@ -6,7 +6,7 @@
 //!  - Provide classification via `is_ziscr()`, `is_m()` and `is_compressed()`
 //!  - Pretty print `Instruction`
 use crate::instructions::{Immediate, RDindex, RS1index, RS2index};
-use crate::register::index_to_name;
+use crate::cpu::index_to_name;
 
 #[allow(dead_code)]
 #[derive(Debug, Clone)]

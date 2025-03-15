@@ -2,8 +2,8 @@
 use std::cmp::{max, min};
 
 use crate::instructions::{sign_extend, Instruction, RS1value, RS2value};
-use crate::memory::Memory;
-use crate::register::Register;
+use super::memory::Memory;
+use super::register::Register;
 
 macro_rules! add_signed {
     ($unsigned:expr, $signed:expr) => {{

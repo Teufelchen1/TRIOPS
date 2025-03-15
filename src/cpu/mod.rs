@@ -2,15 +2,19 @@
 //! If something can not be `impl CPU` it is considered out of scope.
 use std::{array, thread, time};
 
+mod executer;
+mod memory;
+mod register;
+
 use crate::instructions::{decode, Instruction};
 
-use crate::executer::exec;
+use executer::exec;
 
-use crate::memory::Memory;
+use memory::Memory;
 
 use crate::periph::MmapPeripheral;
 
-use crate::register::{self, Register};
+pub use register::{Register, index_to_name};
 
 use elf::abi;
 use elf::endian::AnyEndian;
