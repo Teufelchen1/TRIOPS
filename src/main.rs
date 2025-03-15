@@ -16,12 +16,6 @@ mod periph;
 
 mod instructions;
 
-mod executer;
-
-mod memory;
-
-mod register;
-
 mod cli;
 
 mod cpu;

@@ -1,6 +1,6 @@
 //! The terminal user interface is the scope of this file.
 use crate::cpu::CPU;
-use crate::register::Register;
+use crate::cpu::Register;
 use ratatui::{backend::CrosstermBackend, Terminal};
 use std::array;
 use std::io;
