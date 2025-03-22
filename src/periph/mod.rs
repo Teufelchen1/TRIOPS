@@ -9,9 +9,12 @@ mod uart;
 use backend::{BackendBuffered, BackendTty};
 use uart::Uart;
 
+type InterruptReason = u32;
+
 pub trait MmapPeripheral {
     fn read(&self, offset: usize) -> u8;
     fn write(&mut self, offset: usize, value: u8);
+    fn pending_interrupt(&self) -> Option<InterruptReason>;
 }
 
 trait PeripheralBackend {

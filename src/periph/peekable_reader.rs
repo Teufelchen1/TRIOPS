@@ -13,12 +13,12 @@ impl<T: Send + 'static> PeekableReader<T> {
     /// Argument `f` function / closure is called repeatedly
     /// Should yield a new value everytime that is send to the "receiver"
     /// `f` is allowed to block infinitly
-    pub fn new<F: Fn() -> T + Send + 'static>(f: F) -> Self {
+    pub fn new<F: Fn() -> T + Send + 'static>(read_data: F) -> Self {
         let (tx, rx): (mpsc::Sender<T>, mpsc::Receiver<T>) = mpsc::channel();
         let data_mux = Arc::new(Mutex::new(None));
         let data_mux_clone = data_mux.clone();
         thread::spawn(move || loop {
-            let data = f();
+            let data = read_data();
             let mut data_available = data_mux_clone.lock().unwrap();
             if (*data_available).is_none() {
                 *data_available = Some(data);

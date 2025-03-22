@@ -103,7 +103,7 @@ impl CSR {
                 panic!("Attempt to write to read-only CSR!");
             }
             0x300 => {
-                self.mstatus = 0;
+                self.mstatus = value;
             }
             0x301 => {
                 /* WARL / zero indicates misa is not implemented */
@@ -167,6 +167,54 @@ impl CSR {
             }
         }
     }
+
+    pub fn mstatus_set_mie(&mut self, value: bool) {
+        if value {
+            self.mstatus |= 1 << 3;
+        } else {
+            self.mstatus &= !(1 << 3);
+        }
+    }
+
+    pub fn mstatus_set_mpie(&mut self, value: bool) {
+        if value {
+            self.mstatus |= 1 << 7;
+        } else {
+            self.mstatus &= !(1 << 7);
+        }
+    }
+
+    pub fn mstatus_get_mie(&self) -> bool {
+        self.mstatus & (1 << 3) > 0
+    }
+
+    pub fn _mstatus_get_mpie(&self) -> bool {
+        self.mstatus & (1 << 7) > 0
+    }
+}
+
+// Machine Cause Register
+// The Interrupt bit (msb, the 31th) is set if the trap was caused by an interrupt.
+#[repr(u32)]
+pub enum MCAUSE {
+    _MachineSoftwareInterrupt = 0x8000_0000 + 3,
+    MachineExternalInterrupt = 0x8000_0000 + 11,
+    _CounterOverflowInterrupt = 0x8000_0000 + 13,
+    _InstructionAddressMisaligned = 0,
+    _InstructionAccessFault = 1,
+    _IllegalInstruction = 2,
+    _Breakpoint = 3,
+    _LoadAddressMisaligned = 4,
+    _LoadAccessFault = 5,
+    _StoreAddressMisaligned = 6,
+    _StoreAccessFault = 7,
+    _EcallFromUser = 8,
+    _EcallFromMachine = 11,
+    _InstructionPageFault = 12,
+    _LoadPageFault = 13,
+    _StorePageFault = 15,
+    _SoftwareCheck = 18,
+    _HardwareError = 19,
 }
 
 #[derive(Default)]

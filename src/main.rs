@@ -16,12 +16,6 @@ mod periph;
 
 mod instructions;
 
-mod executer;
-
-mod memory;
-
-mod register;
-
 mod cli;
 
 mod cpu;
@@ -45,14 +39,22 @@ fn main() {
         loop {
             let ok = match cpu.step() {
                 Ok(ok) => ok,
-                Err(err) => panic!(
-                    "{}",
-                    &format!(
-                        "Failed to step at address 0x{:X}: {:}",
-                        cpu.register.pc, err
+                Err(err) => {
+                    println!("\nUnrecoverable error, last 5 instructions:");
+                    for data in cpu.last_n_instructions(10).iter().flatten() {
+                        let (addr, instruction) = data;
+                        println!("0x{addr:08X}:{}", instruction.print());
+                    }
+                    panic!(
+                        "\n{}",
+                        &format!(
+                            "Failed to step at address 0x{:08X}: {:}",
+                            cpu.register.pc, err
+                        )
                     )
-                ),
+                }
             };
+
             if !ok {
                 break;
             }
@@ -83,6 +85,9 @@ fn main() {
         };
 
         // Terminated TUI also terminates main()
-        tui_loop(&mut cpu, &tui_reader, &tui_writer).expect("Well, your TUI crashed");
+        match tui_loop(&mut cpu, &tui_reader, &tui_writer) {
+            Ok(()) => (),
+            Err(err) => panic!("{err:}"),
+        }
     }
 }

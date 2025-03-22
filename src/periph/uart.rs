@@ -1,4 +1,4 @@
-use super::{MmapPeripheral, PeripheralBackend};
+use super::{InterruptReason, MmapPeripheral, PeripheralBackend};
 
 #[allow(clippy::struct_excessive_bools)]
 pub struct Uart<B> {
@@ -176,5 +176,12 @@ impl<B: PeripheralBackend> MmapPeripheral for Uart<B> {
     }
     fn write(&mut self, offset: usize, value: u8) {
         self.write_uart(offset, value);
+    }
+    fn pending_interrupt(&self) -> Option<InterruptReason> {
+        if self.backend.has_data() {
+            Some(0)
+        } else {
+            None
+        }
     }
 }
