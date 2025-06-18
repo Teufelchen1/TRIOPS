@@ -7,87 +7,19 @@
 #![allow(clippy::cast_possible_wrap)]
 #![allow(clippy::cast_possible_truncation)]
 #![allow(clippy::cast_sign_loss)]
-use std::sync::mpsc;
-
-mod ui;
-use ui::tui_loop;
-
-mod periph;
-
-mod instructions;
-
+mod app;
 mod cli;
-
 mod cpu;
-use cpu::CPU;
+mod events;
+mod instructions;
+mod periph;
 
 fn main() {
     let config = cli::Config::parse();
 
     if config.headless {
-        let mut tty = periph::new_stdio_uart();
-        let mut cpu = {
-            if config.bin {
-                let entry = config.entryaddress;
-                let baseaddress = config.baseaddress;
-                CPU::from_bin(&config.file, &mut tty, entry, baseaddress)
-            } else {
-                CPU::from_elf(&config.file, &mut tty)
-            }
-        };
-
-        loop {
-            let ok = match cpu.step() {
-                Ok(ok) => ok,
-                Err(err) => {
-                    println!("\nUnrecoverable error, last 5 instructions:");
-                    for data in cpu.last_n_instructions(10).iter().flatten() {
-                        let (addr, instruction) = data;
-                        println!("0x{addr:08X}:{}", instruction.print());
-                    }
-                    panic!(
-                        "\n{}",
-                        &format!(
-                            "Failed to step at address 0x{:08X}: {:}",
-                            cpu.register.pc, err
-                        )
-                    )
-                }
-            };
-
-            if !ok {
-                break;
-            }
-        }
-
-        if config.testing {
-            let reg = cpu.register.read(17);
-            if reg != 93 {
-                println!("Test failed: {:}", cpu.register.read(10));
-            }
-            assert!(cpu.register.read(17) == 93, "Test failed");
-        } else {
-            println!("Done!");
-        }
+        app::headless::headless(&config);
     } else {
-        // Not headless? Start TUI!
-        let (tx, tui_reader): (mpsc::Sender<u8>, mpsc::Receiver<u8>) = mpsc::channel();
-        let (tui_writer, rx): (mpsc::Sender<u8>, mpsc::Receiver<u8>) = mpsc::channel();
-        let mut buffered = periph::new_buffered_uart(rx, tx);
-        let mut cpu = {
-            if config.bin {
-                let entry = config.entryaddress;
-                let baseaddress = config.baseaddress;
-                CPU::from_bin(&config.file, &mut buffered, entry, baseaddress)
-            } else {
-                CPU::from_elf(&config.file, &mut buffered)
-            }
-        };
-
-        // Terminated TUI also terminates main()
-        match tui_loop(&mut cpu, &tui_reader, &tui_writer) {
-            Ok(()) => (),
-            Err(err) => panic!("{err:}"),
-        }
+        app::tui::tui(&config);
     }
 }

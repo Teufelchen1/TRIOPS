@@ -1,17 +1,13 @@
 //! The terminal user interface is the scope of this file.
 use crate::cpu::Register;
 use crate::cpu::CPU;
-use ratatui::{backend::CrosstermBackend, Terminal};
+use crate::periph::MmapPeripheral;
+use crossterm::event::KeyEvent;
+use crossterm::event::MouseEvent;
 use std::array;
-use std::io;
 use std::sync::mpsc;
-use std::time::Duration;
 
-use crossterm::{
-    event::{self, DisableMouseCapture, Event, KeyCode},
-    execute,
-    terminal::{disable_raw_mode, enable_raw_mode, LeaveAlternateScreen},
-};
+use crossterm::event::KeyCode;
 
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
@@ -20,9 +16,15 @@ use ratatui::{
     Frame,
 };
 
+use super::tui::Job;
+
 pub struct ViewState {
     register_table: [[String; 4]; 8],
-    uart: String,
+    pub uart: String,
+    user_input: String,
+    auto_step: bool,
+    show_help: bool,
+    insert_mode: bool,
 }
 
 impl ViewState {
@@ -30,7 +32,65 @@ impl ViewState {
         ViewState {
             register_table: array::from_fn(|_| array::from_fn(|_| String::new())),
             uart: String::new(),
+            user_input: String::new(),
+            auto_step: false,
+            show_help: true,
+            insert_mode: false,
         }
+    }
+
+    pub fn on_key(&mut self, key: KeyEvent) -> Job {
+        if self.insert_mode {
+            match key.code {
+                KeyCode::Char(ch) => self.user_input.push(ch),
+                KeyCode::Backspace => {
+                    _ = self.user_input.pop();
+                }
+                KeyCode::Enter => {
+                    self.user_input.push('\n');
+                    let job = Job::ReadUart(self.user_input.clone());
+                    self.user_input.clear();
+                    return job;
+                }
+                KeyCode::Esc => {
+                    self.insert_mode = false;
+                }
+                _ => {}
+            }
+        } else {
+            match key.code {
+                KeyCode::Char('a') => {
+                    self.auto_step = !self.auto_step;
+                    return if self.auto_step {
+                        Job::AutoStepOn
+                    } else {
+                        Job::AutoStepOff
+                    };
+                }
+                KeyCode::Char('h') => {
+                    self.show_help = !self.show_help;
+                }
+                KeyCode::Char('i') => {
+                    self.insert_mode = true;
+                }
+                KeyCode::Char('q') => {
+                    return Job::Exit;
+                }
+                KeyCode::Char('s') => {
+                    return Job::Step(1);
+                }
+                _ => {}
+            }
+        }
+        Job::Idle
+    }
+
+    pub fn on_mouse(&mut self, _mouse: MouseEvent) -> Job {
+        todo!();
+    }
+
+    pub fn _is_auto_step(&self) -> bool {
+        self.auto_step
     }
 
     fn prepare_register_table(&mut self, rf: &Register) {
@@ -42,7 +102,7 @@ impl ViewState {
         }
     }
 
-    fn instruction_log_block<'a>(log: Rect, cpu: &CPU<'a>) -> Paragraph<'a> {
+    fn instruction_log_block<T: MmapPeripheral>(log: Rect, cpu: &CPU<T>) -> Paragraph<'_> {
         let log_height = log.height as usize;
         let last_inst = cpu.last_n_instructions(log_height - 2);
         let mut last_instruction_list: String = String::new();
@@ -62,7 +122,7 @@ impl ViewState {
         Paragraph::new(text).block(Block::bordered().title(vec![Span::from("Last Instructions")]))
     }
 
-    fn next_instruction_block<'a>(next: Rect, cpu: &CPU<'a>) -> Paragraph<'a> {
+    fn next_instruction_block<T: MmapPeripheral>(next: Rect, cpu: &CPU<T>) -> Paragraph<'_> {
         let next_height = next.height as usize;
         let mut next_inst = cpu.next_n_instructions(next_height - 1);
         let _ = next_inst.remove(0);
@@ -82,14 +142,11 @@ impl ViewState {
         Paragraph::new(text).block(Block::bordered().title(vec![Span::from("Next Instructions")]))
     }
 
-    pub fn ui(
+    pub fn ui<T: MmapPeripheral>(
         &mut self,
         f: &mut Frame,
-        cpu: &CPU<'_>,
+        cpu: &CPU<T>,
         uart_rx: &mpsc::Receiver<u8>,
-        show_help: bool,
-        insert_mode: bool,
-        user_input: &String,
     ) {
         let size = f.size();
 
@@ -176,7 +233,7 @@ impl ViewState {
         f.render_widget(paragraph, right_chunks[1]);
 
         let right_block_bottom = {
-            if insert_mode {
+            if self.insert_mode {
                 Block::bordered()
                     .title(vec![Span::from("User Input to UART RX [Insert Mode]")])
                     .title_alignment(Alignment::Left)
@@ -189,12 +246,12 @@ impl ViewState {
             }
         };
 
-        let text: &str = &user_input.to_string();
+        let text: &str = &self.user_input;
         let text = Text::from(text);
         let paragraph = Paragraph::new(text).block(right_block_bottom);
         f.render_widget(paragraph, right_chunks[2]);
 
-        if show_help {
+        if self.show_help {
             let block = Block::bordered().title("Help");
             let help_message = Paragraph::new(
                 "Key shortcuts:\n'a' to enable auto-step\n'h' for help\n's' to step one instruction\n'q' to quit\n'i' to enter insert mode\n  'ENTER' to send your input to the uart\n  'ESC' to leave the insert mode",
@@ -223,121 +280,4 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
     .areas(center);
 
     center
-}
-
-#[allow(clippy::too_many_lines)]
-pub fn tui_loop<'a>(
-    cpu: &'a mut CPU<'a>,
-    uart_rx: &mpsc::Receiver<u8>,
-    uart_tx: &mpsc::Sender<u8>,
-) -> anyhow::Result<()> {
-    enable_raw_mode()?;
-    let backend = CrosstermBackend::new(io::stdout());
-    let mut terminal = Terminal::new(backend)?;
-    let _ = terminal.clear();
-
-    let mut ui = ViewState::new();
-    let mut show_help = true;
-    let mut user_input = String::new();
-    let mut insert_mode = false;
-    let mut auto_step = false;
-    let mut timeout = 1;
-
-    'outer: loop {
-        terminal.draw(|f| ui.ui(f, cpu, uart_rx, show_help, insert_mode, &user_input))?;
-        if cpu.waits_for_interrupt && timeout < 2000 {
-            timeout += 10;
-        }
-        if event::poll(Duration::from_millis(timeout))? {
-            timeout = 1;
-            if let Event::Key(key) = event::read()? {
-                if insert_mode {
-                    match key.code {
-                        KeyCode::Char(ch) => user_input.push(ch),
-                        KeyCode::Backspace => {
-                            _ = user_input.pop();
-                        }
-                        KeyCode::Enter => {
-                            user_input.push('\n');
-                            for ch in user_input.chars() {
-                                uart_tx.send(ch as u8)?;
-                            }
-                            user_input.clear();
-                        }
-                        KeyCode::Esc => {
-                            insert_mode = false;
-                        }
-                        _ => {}
-                    }
-                } else {
-                    match key.code {
-                        KeyCode::Char('a') => {
-                            auto_step = !auto_step;
-                        }
-                        KeyCode::Char('h') => {
-                            show_help = !show_help;
-                        }
-                        KeyCode::Char('i') => {
-                            insert_mode = true;
-                        }
-                        KeyCode::Char('q') => {
-                            break;
-                        }
-                        KeyCode::Char('s') => {
-                            let ok = match cpu.step() {
-                                Ok(ok) => ok,
-                                Err(err) => panic!(
-                                    "{}",
-                                    &format!(
-                                        "Failed to step at address 0x{:X}: {:}",
-                                        cpu.register.pc, err
-                                    )
-                                ),
-                            };
-                            if !ok {
-                                break;
-                            }
-                        }
-                        _ => {}
-                    }
-                }
-            }
-        }
-
-        if auto_step {
-            for _ in 0..80 {
-                let ok = match cpu.step() {
-                    Ok(ok) => ok,
-                    Err(err) => {
-                        return Err(anyhow::anyhow!(
-                            "{}",
-                            &format!(
-                                "Failed to step at address 0x{:X}: {:}",
-                                cpu.register.pc, err
-                            )
-                        ))
-                    }
-                };
-
-                if !ok {
-                    break 'outer;
-                }
-
-                if cpu.waits_for_interrupt {
-                    break;
-                }
-            }
-        }
-    }
-
-    let _ = terminal.clear();
-
-    disable_raw_mode()?;
-    execute!(
-        terminal.backend_mut(),
-        LeaveAlternateScreen,
-        DisableMouseCapture
-    )?;
-    terminal.show_cursor()?;
-    Ok(())
 }

@@ -121,9 +121,9 @@ impl CSR {
                 self.mie = 0;
             }
             0x305 => {
-                if value % 4 != 0 {
+                if !value.is_multiple_of(4) {
                     assert!(
-                        value % 4 == 0,
+                        value.is_multiple_of(4),
                         "mtvec value not 4-byte aligned or mode other than Direct selected"
                     );
                 }

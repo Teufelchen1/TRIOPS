@@ -2,7 +2,10 @@
 use std::cmp::{max, min};
 
 use super::CPU;
-use crate::instructions::{sign_extend, Instruction, RS1value, RS2value};
+use crate::{
+    instructions::{sign_extend, Instruction, RS1value, RS2value},
+    periph::MmapPeripheral,
+};
 
 macro_rules! add_signed {
     ($unsigned:expr, $signed:expr) => {{
@@ -14,7 +17,7 @@ macro_rules! add_signed {
     }};
 }
 
-impl CPU<'_> {
+impl<T: MmapPeripheral> CPU<T> {
     /// Executes one instruction.
     #[allow(clippy::too_many_lines)]
     pub fn exec(
@@ -41,7 +44,7 @@ impl CPU<'_> {
         let compressed_instruction;
         let instruction_address = self.register.pc;
         assert!(
-            instruction_address % 2 == 0,
+            instruction_address.is_multiple_of(2),
             "Instruction address not aligned on two byte."
         );
         let actual_instruction = {

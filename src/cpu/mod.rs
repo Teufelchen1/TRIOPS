@@ -1,34 +1,37 @@
 //! This file is scoped around the `CPU` struct.
 //! If something can not be `impl CPU` it is considered out of scope.
-use std::{array, thread, time};
-
-mod executer;
-mod memory;
-mod register;
-
-use crate::instructions::{decode, Instruction};
-
-use memory::Memory;
-
-use crate::periph::MmapPeripheral;
-
-pub use register::{index_to_name, Register};
+use std::array;
+use std::sync::mpsc::{Receiver, Sender};
+use std::sync::{Arc, Mutex};
+use std::thread::{spawn, JoinHandle};
 
 use elf::abi;
 use elf::endian::AnyEndian;
 use elf::ElfBytes;
 
+use crate::events::{CpuJob, Event};
+use crate::instructions::{decode, Instruction};
+use crate::periph::MmapPeripheral;
+
+use memory::Memory;
+
+pub use register::{index_to_name, Register};
+
+mod executer;
+mod memory;
+mod register;
+
 const LOG_LENGTH: usize = 40;
 
-pub struct CPU<'trait_periph> {
+pub struct CPU<T: MmapPeripheral> {
     pub register: Register,
-    pub memory: Memory<'trait_periph>,
+    pub memory: Memory<T>,
     pub waits_for_interrupt: bool,
     instruction_log: [Option<(usize, Instruction)>; LOG_LENGTH],
 }
 
-impl<'trait_periph> CPU<'trait_periph> {
-    pub fn from_elf(file: &[u8], uart: &'trait_periph mut dyn MmapPeripheral) -> Self {
+impl<T: MmapPeripheral> CPU<T> {
+    pub fn from_elf(file: &[u8], uart: T) -> Self {
         let mut cpu = Self {
             register: Register::default(),
             memory: Memory::default_hifive(uart),
@@ -70,12 +73,7 @@ impl<'trait_periph> CPU<'trait_periph> {
         cpu
     }
 
-    pub fn from_bin(
-        file: &[u8],
-        uart: &'trait_periph mut dyn MmapPeripheral,
-        entry_address: usize,
-        base_address: usize,
-    ) -> Self {
+    pub fn from_bin(file: &[u8], uart: T, entry_address: usize, base_address: usize) -> Self {
         let mut cpu = Self {
             register: Register::default(),
             memory: Memory::default_hifive(uart),
@@ -105,9 +103,16 @@ impl<'trait_periph> CPU<'trait_periph> {
     }
 
     pub fn current_instruction(&self) -> anyhow::Result<(usize, Instruction)> {
-        let addr = self.register.pc as usize;
-        let inst = self.instruction_at_addr(addr)?;
-        Ok((addr, inst))
+        if self.waits_for_interrupt {
+            Ok(self
+                .last_instruction()
+                .expect("How did you start waiting for an interrupt without executing WFI first?")
+                .clone())
+        } else {
+            let addr = self.register.pc as usize;
+            let inst = self.instruction_at_addr(addr)?;
+            Ok((addr, inst))
+        }
     }
 
     #[allow(dead_code)]
@@ -145,7 +150,7 @@ impl<'trait_periph> CPU<'trait_periph> {
         instruction_list
     }
 
-    pub fn _last_instruction(&self) -> Option<&(usize, Instruction)> {
+    pub fn last_instruction(&self) -> Option<&(usize, Instruction)> {
         self.instruction_log.last().unwrap_or(&None).as_ref()
     }
 
@@ -168,21 +173,25 @@ impl<'trait_periph> CPU<'trait_periph> {
         self.waits_for_interrupt = false;
     }
 
-    /// Returns true for all instructions except when executing ebreak.
-    /// ebreak is used to signaling the termination of the programm.
-    pub fn step(&mut self) -> anyhow::Result<bool> {
-        // Interrupts are implicit enable when stalling the cpu due to WFI
+    /// Returns true if an interrupt has occured
+    pub fn check_interrupts(&mut self) -> bool {
+        // Interrupts are implicitly enabled when stalling the cpu due to WFI
         // Or directly enabled via MIE
         if self.waits_for_interrupt || self.register.csr.mstatus_get_mie() {
             if let Some(_reason) = self.memory.pending_interrupt() {
                 self.exception(register::MCAUSE::MachineExternalInterrupt);
+                return true;
             }
         }
+        false
+    }
 
+    /// Returns true for all instructions except when executing ebreak.
+    /// ebreak is used to signal the termination of the programm.
+    pub fn step(&mut self) -> anyhow::Result<bool> {
+        self.check_interrupts();
         // Stall when waiting for interrupts
         if self.waits_for_interrupt {
-            // TODO: Replace with signaling method, like conv + mutex
-            thread::sleep(time::Duration::from_millis(50));
             Ok(true)
         } else {
             let (addr, inst) = self.current_instruction()?;
@@ -191,5 +200,91 @@ impl<'trait_periph> CPU<'trait_periph> {
             self.instruction_log[LOG_LENGTH - 1] = Some((addr, inst.clone()));
             Ok(!matches!(inst, Instruction::EBREAK()))
         }
+    }
+}
+
+pub fn create_cpu_thread<T: MmapPeripheral + 'static>(
+    cpu: &Arc<Mutex<CPU<T>>>,
+    sender: Sender<Event>,
+    receiver: Receiver<CpuJob>,
+) -> JoinHandle<()> {
+    let cpu2 = Arc::clone(cpu);
+    spawn(move || cpu_executor(&cpu2, &sender, &receiver))
+}
+
+fn cpu_executor<T: MmapPeripheral>(
+    cpu: &Arc<Mutex<CPU<T>>>,
+    sender: &Sender<Event>,
+    receiver: &Receiver<CpuJob>,
+) {
+    let mut autostep = false;
+    loop {
+        let cpu_waits_for_interrupt = { cpu.lock().unwrap().waits_for_interrupt };
+        let job = if autostep && !cpu_waits_for_interrupt {
+            receiver.try_recv().or_else(|e| match e {
+                std::sync::mpsc::TryRecvError::Empty => Ok(CpuJob::Step(307)),
+                std::sync::mpsc::TryRecvError::Disconnected => Err(0),
+            })
+        } else {
+            // If we wait for interrupt, we wait
+            // If we don't wait for interrupt, we wait anyway for the next CpuJob
+            receiver.recv().map_err(|_e| 0)
+        };
+
+        let steps = match job {
+            Ok(CpuJob::Step(num)) => {
+                if num == 0 {
+                    continue;
+                }
+                num
+            }
+            Ok(CpuJob::AutoStep) => {
+                autostep = true;
+                continue;
+            }
+            Ok(CpuJob::Stop) => {
+                autostep = false;
+                continue;
+            }
+            Ok(CpuJob::CheckInterrupts) => {
+                {
+                    let mut cpu = cpu.lock().unwrap();
+                    if cpu.check_interrupts() {
+                        sender.send(Event::CpuStepComplete(true)).unwrap();
+                    }
+                }
+                continue;
+            }
+            Err(e) => {
+                // error, timeout
+                panic!("{e}");
+            }
+        };
+
+        let mut continue_exec = true;
+        {
+            let mut cpu = cpu.lock().unwrap();
+            for _ in 0..steps {
+                match cpu.step() {
+                    Ok(con_exe) => {
+                        if !con_exe {
+                            continue_exec = false;
+                            break;
+                        }
+                    }
+                    Err(err) => {
+                        sender.send(Event::CpuPanic(err)).unwrap();
+                        return;
+                    }
+                }
+            }
+        }
+        if continue_exec {
+            let _ = sender.send(Event::CpuStepComplete(true));
+        } else {
+            let _ = sender.send(Event::CpuStepComplete(false));
+            break;
+        }
+        std::thread::yield_now();
     }
 }
