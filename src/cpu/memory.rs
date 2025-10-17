@@ -2,9 +2,9 @@
 //! If something can not be `impl Memory` it is considered out of scope.
 use crate::periph::MmapPeripheral;
 
-pub struct Memory<'trait_periph> {
+pub struct Memory<T> {
     pub uart_base: usize,
-    pub uart: &'trait_periph mut dyn MmapPeripheral,
+    pub uart: T,
     pub uart_limit: usize,
     pub ram_base: usize,
     pub ram_limit: usize,
@@ -15,8 +15,8 @@ pub struct Memory<'trait_periph> {
     pub reservation: Option<(usize, u32)>,
 }
 
-impl<'trait_periph> Memory<'trait_periph> {
-    pub fn default_hifive(uart: &'trait_periph mut dyn MmapPeripheral) -> Self {
+impl<T: MmapPeripheral> Memory<T> {
+    pub fn default_hifive(uart: T) -> Self {
         Self {
             uart_base: 0x1001_3000,
             uart,
@@ -79,7 +79,7 @@ impl<'trait_periph> Memory<'trait_periph> {
             // GPIO
             0x1001_2000..=0x1001_2FFF => Ok(0xFF),
             _ => Err(anyhow::anyhow!(
-                "Memory: attemped read outside memory map at address: 0x{addr:08X}"
+                "Memory: attempted read outside memory map at address: 0x{addr:08X}"
             )),
         }
     }
@@ -117,7 +117,7 @@ impl<'trait_periph> Memory<'trait_periph> {
             // GPIO
             0x1001_2000..=0x1001_2FFF => Ok(()),
             _ => Err(anyhow::anyhow!(
-                "Memory: attemped write outside writable memory map at address: 0x{addr:08X}"
+                "Memory: attempted write outside writable memory map at address: 0x{addr:08X}"
             )),
         }
     }

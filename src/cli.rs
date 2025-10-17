@@ -54,7 +54,8 @@ impl Config {
     pub fn parse() -> Self {
         let args = Args::parse();
         let path = args.file;
-        let file = std::fs::read(&path).unwrap_or_else(|_| panic!("Could not read file {path:?}"));
+        let file = std::fs::read(&path)
+            .unwrap_or_else(|_| panic!("Could not read file {}", path.display()));
         let entryaddress = usize_from_str(&args.entryaddress);
         let baseaddress = usize_from_str(&args.baseaddress);
         Self {

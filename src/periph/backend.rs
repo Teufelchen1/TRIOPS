@@ -2,6 +2,7 @@ use std::io;
 use std::io::Read;
 use std::sync::mpsc;
 
+use crate::events::Event;
 use crate::periph::peekable_reader::PeekableReader;
 use crate::periph::PeripheralBackend;
 
@@ -11,11 +12,12 @@ pub struct BackendTty {
 }
 
 impl BackendTty {
-    pub fn new() -> Self {
+    pub fn new(interrupts: mpsc::Sender<Event>) -> Self {
         // setup a PeekableReader that fetches data from stdin
-        let reader = PeekableReader::new(|| {
+        let reader = PeekableReader::new(move || {
             let mut buffer: [u8; 1] = [0];
             io::stdin().read_exact(&mut buffer).unwrap();
+            let _ = interrupts.send(Event::InterruptUart);
             buffer[0]
         });
         BackendTty {
@@ -48,8 +50,16 @@ pub struct BackendBuffered<T> {
 }
 
 impl<T: Send + 'static> BackendBuffered<T> {
-    pub fn new(input: mpsc::Receiver<T>, output: mpsc::Sender<T>) -> Self {
-        let reader = PeekableReader::new(move || input.recv().unwrap());
+    pub fn new(
+        input: mpsc::Receiver<T>,
+        output: mpsc::Sender<T>,
+        interrupts: mpsc::Sender<Event>,
+    ) -> Self {
+        let reader = PeekableReader::new(move || {
+            let data = input.recv().unwrap();
+            let _ = interrupts.send(Event::InterruptUart);
+            data
+        });
         BackendBuffered {
             writer: output,
             peek_reader: reader,

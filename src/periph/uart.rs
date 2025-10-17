@@ -170,7 +170,7 @@ impl<B: PeripheralBackend> Uart<B> {
     }
 }
 
-impl<B: PeripheralBackend> MmapPeripheral for Uart<B> {
+impl<B: PeripheralBackend + Send> MmapPeripheral for Uart<B> {
     fn read(&self, offset: usize) -> u8 {
         self.read_uart(offset)
     }
