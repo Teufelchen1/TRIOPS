@@ -6,7 +6,7 @@ mod backend;
 mod peekable_reader;
 mod uart;
 
-use backend::{BackendBuffered, BackendTty};
+use backend::{BackendBuffered, BackendSocket, BackendTty};
 use uart::Uart;
 
 use crate::events::Event;
@@ -35,4 +35,8 @@ pub fn new_buffered_uart(
 
 pub fn new_stdio_uart(interrupt_queue: mpsc::Sender<Event>) -> impl MmapPeripheral {
     Uart::default(BackendTty::new(interrupt_queue))
+}
+
+pub fn new_unix_socket_uart(interrupt_queue: mpsc::Sender<Event>) -> impl MmapPeripheral {
+    Uart::default(BackendSocket::new(interrupt_queue))
 }

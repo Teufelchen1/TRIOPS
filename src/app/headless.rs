@@ -12,6 +12,8 @@ pub fn headless(config: &cli::Config) {
 
     let tty = periph::new_stdio_uart(event_sender.clone());
 
+    let tty = periph::new_unix_socket_uart(event_sender.clone());
+
     let cpu_val = {
         if config.bin {
             let entry = config.entryaddress;

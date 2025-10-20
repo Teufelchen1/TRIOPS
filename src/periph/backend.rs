@@ -1,5 +1,7 @@
-use std::io;
-use std::io::Read;
+use std::fs;
+use std::{io, thread};
+use std::io::{Read, Write};
+use std::os::unix::net::{UnixListener, UnixStream};
 use std::sync::mpsc;
 
 use crate::events::Event;
@@ -82,5 +84,63 @@ where
     }
     fn write_cb(&self, value: u8) {
         self.writer.send(value.into()).unwrap();
+    }
+}
+
+/// A backend that read/writes to a unix socket
+pub struct BackendSocket {
+    buffered_backend: BackendBuffered<u8>,
+}
+
+fn unixsocket_server(input: mpsc::Receiver<u8>, output: mpsc::Sender<u8>,) {
+    let _ = fs::remove_file("./unixsocket");
+    let listener = UnixListener::bind("./unixsocket").unwrap();
+    if let Ok((mut socket, _addr)) = listener.accept() {
+        println!("Accepted unixsocket listener");
+        let mut socket2 = socket.try_clone().unwrap();
+        thread::Builder::new()
+            .name("Unixsocket Reader".to_owned())
+            .spawn(move || {
+                let mut buf: [u8; 1] = [0; 1];
+                while let Ok(_num) = socket2.read_exact(&mut buf) {
+                    output.send(buf[0]).unwrap();
+                }
+            })
+            .unwrap();
+
+        while let Ok(data) = input.recv() {
+            socket.write(&[data]).unwrap();
+        }
+    }
+    panic!("Unixsocket Server thread died");
+}
+
+impl BackendSocket {
+    pub fn new(interrupts: mpsc::Sender<Event>) -> Self {
+        let (from_unix_to_triops, triops_receive_from_unix) = mpsc::channel();
+        let (from_triops_to_unix, unix_receive_from_triops) = mpsc::channel();
+
+        thread::Builder::new()
+            .name("Unixsocket Reader".to_owned())
+            .spawn(move || unixsocket_server(unix_receive_from_triops, from_unix_to_triops))
+            .unwrap();
+
+        Self {
+            buffered_backend: BackendBuffered::new(triops_receive_from_unix, from_triops_to_unix, interrupts)
+        }
+    }
+}
+
+impl PeripheralBackend for BackendSocket {
+    fn has_data(&self) -> bool {
+        self.buffered_backend.has_data()
+    }
+    fn read_cb(&self) -> Option<u8> {
+       self.buffered_backend.read_cb()
+    }
+
+    // We can directly print in order to write to stdout
+    fn write_cb(&self, value: u8) {
+        self.buffered_backend.write_cb(value);
     }
 }

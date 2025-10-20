@@ -25,8 +25,8 @@ impl<T: MmapPeripheral> Memory<T> {
             rom_limit: 0x4000_0000,
             rom: vec![0; 0x2000_0000],
             ram_base: 0x8000_0000,
-            ram_limit: 0x8000_4000,
-            ram: vec![0; 0x4000],
+            ram_limit: 0x8000_8000,
+            ram: vec![0; 0x8000],
             reservation: None,
         }
     }
@@ -78,6 +78,9 @@ impl<T: MmapPeripheral> Memory<T> {
             }
             // GPIO
             0x1001_2000..=0x1001_2FFF => Ok(0xFF),
+            // timer?
+            0x0200BFF8..=0x0200BFFF => Ok(0),
+            0x02004000..=0x02004003 => Ok(0),
             _ => Err(anyhow::anyhow!(
                 "Memory: attempted read outside memory map at address: 0x{addr:08X}"
             )),
@@ -116,6 +119,9 @@ impl<T: MmapPeripheral> Memory<T> {
             }
             // GPIO
             0x1001_2000..=0x1001_2FFF => Ok(()),
+            // Timer?
+            0x0200BFF8..=0x0200BFFF => Ok(()),
+            0x02004000..=0x02004007 => Ok(()),
             _ => Err(anyhow::anyhow!(
                 "Memory: attempted write outside writable memory map at address: 0x{addr:08X}"
             )),
