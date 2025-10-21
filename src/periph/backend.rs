@@ -1,7 +1,7 @@
 use std::fs;
 use std::{io, thread};
 use std::io::{Read, Write};
-use std::os::unix::net::{UnixListener, UnixStream};
+use std::os::unix::net::UnixListener;
 use std::sync::mpsc;
 
 use crate::events::Event;
@@ -92,25 +92,48 @@ pub struct BackendSocket {
     buffered_backend: BackendBuffered<u8>,
 }
 
-fn unixsocket_server(input: mpsc::Receiver<u8>, output: mpsc::Sender<u8>,) {
+fn unixsocket_server(input: mpsc::Receiver<u8>, output: mpsc::Sender<u8>) {
     let _ = fs::remove_file("./unixsocket");
     let listener = UnixListener::bind("./unixsocket").unwrap();
-    if let Ok((mut socket, _addr)) = listener.accept() {
-        println!("Accepted unixsocket listener");
-        let mut socket2 = socket.try_clone().unwrap();
-        thread::Builder::new()
-            .name("Unixsocket Reader".to_owned())
-            .spawn(move || {
-                let mut buf: [u8; 1] = [0; 1];
-                while let Ok(_num) = socket2.read_exact(&mut buf) {
-                    output.send(buf[0]).unwrap();
+    loop {
+        if let Err(err) = input.try_recv() {
+            match err {
+                mpsc::TryRecvError::Empty => (),
+                mpsc::TryRecvError::Disconnected => {
+                    println!("Terminating unixsocket_server");
+                    return;
                 }
-            })
-            .unwrap();
-
-        while let Ok(data) = input.recv() {
-            socket.write(&[data]).unwrap();
+            }
         }
+        
+        if let Ok((mut socket, _addr)) = listener.accept() {
+            println!("Accepted unixsocket listener");
+            let mut socket2 = socket.try_clone().unwrap();
+            let output2 = output.clone();
+            let handle = thread::Builder::new()
+                .name("Unixsocket Reader".to_owned())
+                .spawn(move || {
+                    let mut buf: [u8; 1] = [0; 1];
+                    while let Ok(_num) = socket2.read_exact(&mut buf) {
+                        if let Err(_) = output2.send(buf[0]) {
+                            println!("Aborting Unixsocket reader");
+                            return;
+                        }
+                    }
+                    println!("Terminating Unixsocket reader");
+                })
+                .unwrap();
+
+            while let Ok(data) = input.recv() {
+                if let Err(_) = socket.write(&[data]) {
+                    break;
+                }
+            }
+
+            println!("Waiting for Unixsocket Reader to join");
+            let _ = handle.join();
+        }
+        println!("Restarting unixsocket_server")
     }
     panic!("Unixsocket Server thread died");
 }
