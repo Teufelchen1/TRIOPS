@@ -1,13 +1,22 @@
+use std::os::unix::fs::FileTypeExt;
+
+use anyhow::anyhow;
+use anyhow::Context;
 use clap::Parser;
 
 #[derive(Parser, Debug)]
 struct Args {
     /// If set, no TUI is started.
     ///
-    /// TRIOPS will run as fast as the CPU allows.
-    /// The UART will be mapped to stdio.
+    /// TRIOPS will run as fast as your machine allows.
+    /// The UART will be mapped to stdio unless a unix socket is specified, see `uart-socket`.
     #[arg(long, default_value_t = false, verbatim_doc_comment)]
     headless: bool,
+
+    /// If set, connects UART TX/RX to the specified unix socket.
+    /// If not set, the UART will be mapped to stdio.
+    #[arg(long, verbatim_doc_comment, requires("headless"))]
+    uart_socket: Option<std::path::PathBuf>,
 
     /// If set, the emulation result will be checked.
     ///
@@ -43,6 +52,7 @@ struct Args {
 /// Longterm goal is having a `Config` struct that can be used to save & replay the emulator
 pub struct Config {
     pub headless: bool,
+    pub uart_socket: Option<std::path::PathBuf>,
     pub testing: bool,
     pub bin: bool,
     pub entryaddress: usize,
@@ -51,21 +61,38 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn parse() -> Self {
+    pub fn parse() -> anyhow::Result<Self> {
         let args = Args::parse();
         let path = args.file;
-        let file = std::fs::read(&path)
-            .unwrap_or_else(|_| panic!("Could not read file {}", path.display()));
+        let file =
+            std::fs::read(&path).context(format!("Could not read file {}", path.display()))?;
+        if let Some(ref socket_path) = args.uart_socket {
+            if socket_path.exists() {
+                let attr = std::fs::metadata(socket_path).context(format!(
+                    "Unable to create unixsocket for the UART backend: {}",
+                    socket_path.display()
+                ))?;
+                if attr.file_type().is_socket() {
+                    let _ = std::fs::remove_file(socket_path);
+                } else {
+                    return Err(anyhow!(std::io::ErrorKind::AlreadyExists)).context(format!(
+                        "Unable to create unixsocket for the UART backend: {}",
+                        socket_path.display()
+                    ));
+                }
+            }
+        }
         let entryaddress = usize_from_str(&args.entryaddress);
         let baseaddress = usize_from_str(&args.baseaddress);
-        Self {
+        Ok(Self {
             headless: args.headless,
+            uart_socket: args.uart_socket,
             testing: args.testing,
             bin: args.bin,
             entryaddress,
             baseaddress,
             file,
-        }
+        })
     }
 }
 

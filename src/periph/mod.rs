@@ -1,12 +1,13 @@
 //! Emulation of hardware peripherals is scoped for this file.
 //! Currently, only memory mapped peripherals are available via `trait MmapPeripheral`.
+use std::path::PathBuf;
 use std::sync::mpsc;
 
 mod backend;
 mod peekable_reader;
 mod uart;
 
-use backend::{BackendBuffered, BackendTty};
+use backend::{BackendBuffered, BackendSocket, BackendTty};
 use uart::Uart;
 
 use crate::events::Event;
@@ -35,4 +36,11 @@ pub fn new_buffered_uart(
 
 pub fn new_stdio_uart(interrupt_queue: mpsc::Sender<Event>) -> impl MmapPeripheral {
     Uart::default(BackendTty::new(interrupt_queue))
+}
+
+pub fn new_unix_socket_uart(
+    interrupt_queue: mpsc::Sender<Event>,
+    socket_path: &PathBuf,
+) -> impl MmapPeripheral {
+    Uart::default(BackendSocket::new(interrupt_queue, socket_path))
 }
