@@ -4,10 +4,16 @@ use clap::Parser;
 struct Args {
     /// If set, no TUI is started.
     ///
-    /// TRIOPS will run as fast as the CPU allows.
-    /// The UART will be mapped to stdio.
+    /// TRIOPS will run as fast as your maschine allows.
+    /// The UART will be mapped to stdio unless a unix socket is specified, see `uart-socket`.
     #[arg(long, default_value_t = false, verbatim_doc_comment)]
     headless: bool,
+
+    /// If set, connects UART TX/RX to the specified unix socket.
+    /// If not set, the UART will be mapped to stdio.
+    #[arg(long, verbatim_doc_comment, requires("headless"))]
+    uart_socket: Option<String>,
+
 
     /// If set, the emulation result will be checked.
     ///
@@ -43,6 +49,7 @@ struct Args {
 /// Longterm goal is having a `Config` struct that can be used to save & replay the emulator
 pub struct Config {
     pub headless: bool,
+    pub uart_socket: Option<String>,
     pub testing: bool,
     pub bin: bool,
     pub entryaddress: usize,
@@ -60,6 +67,7 @@ impl Config {
         let baseaddress = usize_from_str(&args.baseaddress);
         Self {
             headless: args.headless,
+            uart_socket: args.uart_socket,
             testing: args.testing,
             bin: args.bin,
             entryaddress,
