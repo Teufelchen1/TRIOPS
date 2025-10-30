@@ -14,12 +14,13 @@ mod events;
 mod instructions;
 mod periph;
 
-fn main() {
-    let config = cli::Config::parse();
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let config = cli::Config::parse()?;
 
     if config.headless {
         app::headless::headless(&config);
     } else {
         app::tui::tui(&config);
     }
+    Ok(())
 }
