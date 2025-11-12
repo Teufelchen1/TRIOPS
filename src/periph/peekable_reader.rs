@@ -22,8 +22,8 @@ impl<T: Send + 'static> PeekableReader<T> {
             let mut data_available = data_mux_clone.lock().unwrap();
             if (*data_available).is_none() {
                 *data_available = Some(data);
-            } else {
-                tx.send(data).unwrap();
+            } else if tx.send(data).is_err() {
+                return;
             }
         });
         Self {

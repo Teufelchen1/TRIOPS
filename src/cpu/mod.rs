@@ -221,32 +221,36 @@ fn cpu_executor<T: MmapPeripheral>(
     loop {
         let cpu_waits_for_interrupt = { cpu.lock().unwrap().waits_for_interrupt };
         let job = if autostep && !cpu_waits_for_interrupt {
-            receiver.try_recv().or_else(|e| match e {
-                std::sync::mpsc::TryRecvError::Empty => Ok(CpuJob::Step(307)),
-                std::sync::mpsc::TryRecvError::Disconnected => Err(0),
-            })
+            match receiver.try_recv() {
+                Ok(job) => job,
+                Err(std::sync::mpsc::TryRecvError::Empty) => CpuJob::Step(307),
+                Err(_e) => return,
+            }
         } else {
             // If we wait for interrupt, we wait
             // If we don't wait for interrupt, we wait anyway for the next CpuJob
-            receiver.recv().map_err(|_e| 0)
+            match receiver.recv() {
+                Ok(job) => job,
+                Err(_e) => return,
+            }
         };
 
         let steps = match job {
-            Ok(CpuJob::Step(num)) => {
+            CpuJob::Step(num) => {
                 if num == 0 {
                     continue;
                 }
                 num
             }
-            Ok(CpuJob::AutoStep) => {
+            CpuJob::AutoStep => {
                 autostep = true;
                 continue;
             }
-            Ok(CpuJob::Stop) => {
+            CpuJob::Stop => {
                 autostep = false;
                 continue;
             }
-            Ok(CpuJob::CheckInterrupts) => {
+            CpuJob::CheckInterrupts => {
                 {
                     let mut cpu = cpu.lock().unwrap();
                     if cpu.check_interrupts() {
@@ -254,10 +258,6 @@ fn cpu_executor<T: MmapPeripheral>(
                     }
                 }
                 continue;
-            }
-            Err(e) => {
-                // error, timeout
-                panic!("{e}");
             }
         };
 

@@ -53,14 +53,14 @@ pub struct BackendBuffered<T> {
     peek_reader: PeekableReader<T>,
 }
 
-impl<T: Send + 'static> BackendBuffered<T> {
+impl<T: Send + 'static + Default> BackendBuffered<T> {
     pub fn new(
         input: mpsc::Receiver<T>,
         output: mpsc::Sender<T>,
         interrupts: mpsc::Sender<Event>,
     ) -> Self {
         let reader = PeekableReader::new(move || {
-            let data = input.recv().unwrap();
+            let data = input.recv().unwrap_or_else(|_| T::default());
             let _ = interrupts.send(Event::InterruptUart);
             data
         });
