@@ -21,7 +21,7 @@ mod executer;
 mod memory;
 mod register;
 
-const LOG_LENGTH: usize = 40;
+const LOG_LENGTH: usize = 80;
 
 pub struct CPU<T: MmapPeripheral> {
     pub register: Register,
