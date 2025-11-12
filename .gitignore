@@ -16,6 +16,10 @@ Cargo.lock
 
 *.hex
 *.elf
+*.bin
+RIOT_App/app/bin
+RIOT_App/RIOT
+
 
 # Added by cargo
 
