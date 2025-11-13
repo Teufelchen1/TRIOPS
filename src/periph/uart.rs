@@ -44,10 +44,8 @@ impl<B: PeripheralBackend> Uart<B> {
             }
             0x04 => {
                 // ...0x07 rxdata Receive data register
-                if self.rx_enable {
-                    if let Some(data) = self.backend.read_cb() {
-                        return data;
-                    }
+                if let Some(data) = self.backend.read_cb() {
+                    return data;
                 }
                 0
             }
@@ -178,7 +176,7 @@ impl<B: PeripheralBackend + Send> MmapPeripheral for Uart<B> {
         self.write_uart(offset, value);
     }
     fn pending_interrupt(&self) -> Option<InterruptReason> {
-        if self.backend.has_data() {
+        if self.rx_enable && self.rxwm_ie && self.backend.has_data() {
             Some(0)
         } else {
             None

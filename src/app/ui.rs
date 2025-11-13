@@ -1,10 +1,13 @@
 //! The terminal user interface is the scope of this file.
 use crate::cpu::Register;
 use crate::cpu::CPU;
+use crate::instructions::Instruction;
 use crate::periph::MmapPeripheral;
+use anyhow::Error;
 use crossterm::event::KeyEvent;
 use crossterm::event::MouseEvent;
-use std::array;
+use ratatui::layout::Margin;
+use std::fmt::Write;
 use std::sync::mpsc;
 
 use crossterm::event::KeyCode;
@@ -12,14 +15,13 @@ use crossterm::event::KeyCode;
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     text::{Span, Text},
-    widgets::{Block, Cell, Clear, Paragraph, Row, Table},
+    widgets::{Block, Clear, Paragraph},
     Frame,
 };
 
 use super::tui::Job;
 
 pub struct ViewState {
-    register_table: [[String; 4]; 8],
     pub uart: String,
     user_input: String,
     auto_step: bool,
@@ -30,7 +32,6 @@ pub struct ViewState {
 impl ViewState {
     pub fn new() -> Self {
         ViewState {
-            register_table: array::from_fn(|_| array::from_fn(|_| String::new())),
             uart: String::new(),
             user_input: String::new(),
             auto_step: false,
@@ -93,15 +94,6 @@ impl ViewState {
         self.auto_step
     }
 
-    fn prepare_register_table(&mut self, rf: &Register) {
-        for k in 0..8 {
-            for n in 0..4 {
-                let index = k * 4 + n;
-                self.register_table[k][n] = rf.to_string(index);
-            }
-        }
-    }
-
     fn instruction_log_block<T: MmapPeripheral>(log: Rect, cpu: &CPU<T>) -> Paragraph<'_> {
         let log_height = log.height as usize;
         let last_inst = cpu.last_n_instructions(log_height - 2);
@@ -142,84 +134,74 @@ impl ViewState {
         Paragraph::new(text).block(Block::bordered().title(vec![Span::from("Next Instructions")]))
     }
 
-    pub fn ui<T: MmapPeripheral>(
-        &mut self,
-        f: &mut Frame,
-        cpu: &CPU<T>,
-        uart_rx: &mpsc::Receiver<u8>,
-    ) {
-        let size = f.size();
+    fn register_table(rf: &Register) -> (Paragraph<'_>, Paragraph<'_>) {
+        fn register_to_str(dest: &mut String, num: usize, comment: &str, rf: &Register) {
+            let _ = writeln!(dest, "x{num:<2} /{:} | {comment}", rf.to_string(num));
+        }
 
-        let chunks = Layout::default()
-            .direction(Direction::Horizontal)
-            .constraints([Constraint::Percentage(25), Constraint::Percentage(75)].as_ref())
-            .split(size);
+        let mut res = String::new();
+        let _ = writeln!(
+            res,
+            "pc  /none: 0x{0:08X} / {0:>11} | programm counter",
+            rf.pc
+        );
+        register_to_str(&mut res, 0, "Always zero!", rf);
+        register_to_str(&mut res, 1, "Return address", rf);
+        register_to_str(&mut res, 2, "Stack pointer", rf);
+        register_to_str(&mut res, 3, "Global pointer", rf);
+        register_to_str(&mut res, 4, "Thread pointer", rf);
+        register_to_str(&mut res, 8, "Frame pointer", rf);
+        res.push('\n');
 
-        let right_chunks = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints(
-                [
-                    Constraint::Percentage(45),
-                    Constraint::Percentage(45),
-                    Constraint::Percentage(10),
-                ]
-                .as_ref(),
-            )
-            .split(chunks[1]);
+        for i in 10..12 {
+            register_to_str(&mut res, i, "return value/fn arg", rf);
+        }
+        for i in 12..18 {
+            register_to_str(&mut res, i, "function argument", rf);
+        }
+        res.push('\n');
+        let left = Paragraph::new(res);
 
-        let left_chunks = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints(
-                [
-                    Constraint::Fill(1),
-                    Constraint::Length(3),
-                    Constraint::Fill(1),
-                ]
-                .as_ref(),
-            )
-            .split(chunks[0]);
+        let mut res = String::new();
+        register_to_str(&mut res, 8, "saved register", rf);
+        register_to_str(&mut res, 9, "saved register", rf);
+        for i in 18..28 {
+            register_to_str(&mut res, i, "saved register", rf);
+        }
+        res.push('\n');
 
-        let log = left_chunks[0];
-        let paragraph = ViewState::instruction_log_block(log, cpu);
-        f.render_widget(paragraph, log);
+        for i in 5..8 {
+            register_to_str(&mut res, i, "temporary register", rf);
+        }
+        for i in 28..32 {
+            register_to_str(&mut res, i, "temporary register", rf);
+        }
+        res.push('\n');
+        let right = Paragraph::new(res);
 
-        let current = left_chunks[1];
-        let text = {
-            if let Ok((addr, inst)) = cpu.current_instruction() {
-                Text::from(format!("0x{:08X}: {:}", addr, inst.print()))
-            } else {
-                Text::from("Failed to parse.")
-            }
-        };
-        let paragraph = Paragraph::new(text)
-            .block(Block::bordered().title(vec![Span::from("Current Instruction")]));
-        f.render_widget(paragraph, current);
+        (left, right)
+    }
 
-        let next = left_chunks[2];
-        let paragraph = ViewState::next_instruction_block(next, cpu);
-        f.render_widget(paragraph, next);
-
+    fn render_registers(register_block: Rect, registers: &Register, frame: &mut Frame) {
         let register_file_table = Block::bordered()
             .title(vec![Span::from("Registers")])
             .title_alignment(Alignment::Left);
 
-        self.prepare_register_table(&cpu.register);
-        let rows = self.register_table.iter().map(|row| {
-            let cells = row.iter().map(|c| Cell::from(c.as_str()));
-            Row::new(cells).height(1).bottom_margin(0)
-        });
-        let t = Table::new(
-            rows,
-            [
-                Constraint::Percentage(25),
-                Constraint::Percentage(25),
-                Constraint::Percentage(25),
-                Constraint::Percentage(25),
-            ],
-        )
-        .block(register_file_table);
-        f.render_widget(t, right_chunks[0]);
+        let register_chunks = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+            .split(register_block.inner(&Margin {
+                horizontal: 1,
+                vertical: 1,
+            }));
 
+        let (left, right) = ViewState::register_table(registers);
+        frame.render_widget(left, register_chunks[0]);
+        frame.render_widget(right, register_chunks[1]);
+        frame.render_widget(register_file_table, register_block);
+    }
+
+    fn render_io(&mut self, io_block: Rect, uart_rx: &mpsc::Receiver<u8>, frame: &mut Frame) {
         let right_block_down = Block::bordered()
             .title(vec![Span::from("I/O")])
             .title_alignment(Alignment::Left);
@@ -230,8 +212,10 @@ impl ViewState {
         let text: &str = &self.uart;
         let text = Text::from(text);
         let paragraph = Paragraph::new(text).block(right_block_down);
-        f.render_widget(paragraph, right_chunks[1]);
+        frame.render_widget(paragraph, io_block);
+    }
 
+    fn render_input(&self, input_block: Rect, frame: &mut Frame) {
         let right_block_bottom = {
             if self.insert_mode {
                 Block::bordered()
@@ -249,7 +233,82 @@ impl ViewState {
         let text: &str = &self.user_input;
         let text = Text::from(text);
         let paragraph = Paragraph::new(text).block(right_block_bottom);
-        f.render_widget(paragraph, right_chunks[2]);
+        frame.render_widget(paragraph, input_block);
+    }
+
+    fn render_current_instruction(
+        current_block: Rect,
+        current_instruction: Result<(usize, Instruction), Error>,
+        frame: &mut Frame,
+    ) {
+        let text = {
+            if let Ok((addr, inst)) = current_instruction {
+                Text::from(format!("0x{:08X}: {:}", addr, inst.print()))
+            } else {
+                Text::from("Failed to parse.")
+            }
+        };
+        let paragraph = Paragraph::new(text)
+            .block(Block::bordered().title(vec![Span::from("Current Instruction")]));
+        frame.render_widget(paragraph, current_block);
+    }
+
+    pub fn ui<T: MmapPeripheral>(
+        &mut self,
+        f: &mut Frame,
+        cpu: &CPU<T>,
+        uart_rx: &mpsc::Receiver<u8>,
+    ) {
+        let size = f.size();
+
+        let chunks = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([Constraint::Percentage(25), Constraint::Percentage(75)].as_ref())
+            .split(size);
+
+        let left_chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints(
+                [
+                    Constraint::Fill(1),
+                    Constraint::Length(3),
+                    Constraint::Fill(1),
+                ]
+                .as_ref(),
+            )
+            .split(chunks[0]);
+
+        let log_block = left_chunks[0];
+        let current_block = left_chunks[1];
+        let next_block = left_chunks[2];
+
+        let right_chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints(
+                [
+                    Constraint::Length(22),
+                    Constraint::Fill(1),
+                    Constraint::Length(3),
+                ]
+                .as_ref(),
+            )
+            .split(chunks[1]);
+
+        let register_block = right_chunks[0];
+        let io_block = right_chunks[1];
+        let input_block = right_chunks[2];
+
+        let paragraph = ViewState::instruction_log_block(log_block, cpu);
+        f.render_widget(paragraph, log_block);
+
+        ViewState::render_current_instruction(current_block, cpu.current_instruction(), f);
+
+        let paragraph = ViewState::next_instruction_block(next_block, cpu);
+        f.render_widget(paragraph, next_block);
+
+        ViewState::render_registers(register_block, &cpu.register, f);
+        self.render_io(io_block, uart_rx, f);
+        self.render_input(input_block, f);
 
         if self.show_help {
             let block = Block::bordered().title("Help");
