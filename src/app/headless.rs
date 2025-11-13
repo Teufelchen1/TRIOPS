@@ -1,12 +1,30 @@
+use std::io::{self, Read};
 use std::path::PathBuf;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::{Arc, Mutex};
+use std::thread::spawn;
+use std::thread::JoinHandle;
 
 use crate::cli;
 use crate::cpu::{create_cpu_thread, CPU};
 use crate::events::{CpuJob, Event};
 use crate::periph;
 use crate::periph::MmapPeripheral;
+
+fn input_thread(sender: &Sender<Event>) {
+    println!("Use ^D to terminate.");
+    let mut buffer = [0; 1];
+    while let Ok(size) = io::stdin().read(&mut buffer) {
+        if size == 0 {
+            break;
+        }
+    }
+    sender.send(Event::ExitApp).unwrap();
+}
+
+fn create_input_thread(sender: Sender<Event>) -> JoinHandle<()> {
+    spawn(move || input_thread(&sender))
+}
 
 fn headless_unix_socket(config: &cli::Config, socket_path: &PathBuf) {
     let (event_sender, event_receiver): (Sender<Event>, Receiver<Event>) = channel();
@@ -21,6 +39,9 @@ fn headless_unix_socket(config: &cli::Config, socket_path: &PathBuf) {
         CPU::from_elf(&config.file, tty)
     };
     let cpu = Arc::new(Mutex::new(cpu_val));
+
+    create_input_thread(event_sender.clone());
+
     cpu_job_loop(
         config,
         &cpu,
@@ -101,6 +122,9 @@ fn cpu_job_loop(
             }
             Event::InterruptUart => {
                 cpu_sender.send(CpuJob::CheckInterrupts).unwrap();
+            }
+            Event::ExitApp => {
+                break;
             }
             _ => (),
         }

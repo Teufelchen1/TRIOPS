@@ -79,6 +79,7 @@ fn event_loop_tui<T: periph::MmapPeripheral>(
                 Event::TerminalKey(key) => input_app.on_key(key),
                 Event::TerminalMouse(mouse) => input_app.on_mouse(mouse),
                 Event::TerminalResize => Job::Idle,
+                Event::ExitApp => Job::Exit,
                 Event::CpuStepComplete(continue_exec) => {
                     if continue_exec {
                         Job::Idle
