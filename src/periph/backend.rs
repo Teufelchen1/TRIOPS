@@ -112,14 +112,14 @@ fn unixsocket_writer(input: &mpsc::Receiver<u8>, socket_receiver: &mpsc::Receive
     }
 }
 
-fn unixsocket_server(input: mpsc::Receiver<u8>, output: &mpsc::Sender<u8>, socket_path: String) {
+fn unixsocket_server(input: mpsc::Receiver<u8>, output: &mpsc::Sender<u8>, socket_path: &str) {
     let (socket_sender, socket_receiver) = mpsc::channel();
     let _handle = thread::Builder::new()
         .name("Unixsocket Write".to_owned())
         .spawn(move || unixsocket_writer(&input, &socket_receiver))
         .unwrap();
-    let _ = fs::remove_file(&socket_path);
-    let listener = UnixListener::bind(&socket_path).unwrap();
+    let _ = fs::remove_file(socket_path);
+    let listener = UnixListener::bind(socket_path).unwrap();
     loop {
         if let Ok((mut socket, _addr)) = listener.accept() {
             println!("Accepted unixsocket listener");
@@ -146,7 +146,7 @@ impl BackendSocket {
         let path = socket_path.to_owned();
         thread::Builder::new()
             .name("Unixsocket Server".to_owned())
-            .spawn(move || unixsocket_server(unix_receive_from_triops, &from_unix_to_triops, path))
+            .spawn(move || unixsocket_server(unix_receive_from_triops, &from_unix_to_triops, &path))
             .unwrap();
 
         Self {

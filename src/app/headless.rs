@@ -19,18 +19,25 @@ fn headless_unix_socket(config: &cli::Config, socket_path: &String) {
         CPU::from_elf(&config.file, tty)
     };
     let cpu = Arc::new(Mutex::new(cpu_val));
-    cpu_job_loop(config, cpu, event_receiver, event_sender, cpu_reader, cpu_sender);
+    cpu_job_loop(
+        config,
+        &cpu,
+        &event_receiver,
+        event_sender,
+        cpu_reader,
+        &cpu_sender,
+    );
 }
 
 pub fn headless(config: &cli::Config) {
-     if let Some(ref path) = config.uart_socket {
-        headless_unix_socket(config, &path);
+    if let Some(ref path) = config.uart_socket {
+        headless_unix_socket(config, path);
         return;
-     }
+    }
 
     let (event_sender, event_receiver): (Sender<Event>, Receiver<Event>) = channel();
     let (cpu_sender, cpu_reader): (Sender<CpuJob>, Receiver<CpuJob>) = channel();
-    
+
     let tty = periph::new_stdio_uart(event_sender.clone());
     let cpu_val = if config.bin {
         let entry = config.entryaddress;
@@ -40,13 +47,25 @@ pub fn headless(config: &cli::Config) {
         CPU::from_elf(&config.file, tty)
     };
     let cpu = Arc::new(Mutex::new(cpu_val));
-    cpu_job_loop(config, cpu, event_receiver, event_sender, cpu_reader, cpu_sender);
-
+    cpu_job_loop(
+        config,
+        &cpu,
+        &event_receiver,
+        event_sender,
+        cpu_reader,
+        &cpu_sender,
+    );
 }
 
-fn cpu_job_loop(config: &cli::Config, cpu: Arc<Mutex<CPU<impl MmapPeripheral + 'static>>>, event_receiver: Receiver<Event>, event_sender: Sender<Event>, cpu_reader: Receiver<CpuJob>, cpu_sender: Sender<CpuJob>)
- {
-    create_cpu_thread(&Arc::clone(&cpu), event_sender, cpu_reader);
+fn cpu_job_loop(
+    config: &cli::Config,
+    cpu: &Arc<Mutex<CPU<impl MmapPeripheral + 'static>>>,
+    event_receiver: &Receiver<Event>,
+    event_sender: Sender<Event>,
+    cpu_reader: Receiver<CpuJob>,
+    cpu_sender: &Sender<CpuJob>,
+) {
+    create_cpu_thread(&Arc::clone(cpu), event_sender, cpu_reader);
 
     cpu_sender.send(CpuJob::AutoStep).unwrap();
 

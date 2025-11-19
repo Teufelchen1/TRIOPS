@@ -37,6 +37,9 @@ pub fn new_stdio_uart(interrupt_queue: mpsc::Sender<Event>) -> impl MmapPeripher
     Uart::default(BackendTty::new(interrupt_queue))
 }
 
-pub fn new_unix_socket_uart(interrupt_queue: mpsc::Sender<Event>, socket_path: &String) -> impl MmapPeripheral {
+pub fn new_unix_socket_uart(
+    interrupt_queue: mpsc::Sender<Event>,
+    socket_path: &String,
+) -> impl MmapPeripheral {
     Uart::default(BackendSocket::new(interrupt_queue, socket_path))
 }

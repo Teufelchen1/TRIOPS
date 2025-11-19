@@ -14,7 +14,6 @@ struct Args {
     #[arg(long, verbatim_doc_comment, requires("headless"))]
     uart_socket: Option<String>,
 
-
     /// If set, the emulation result will be checked.
     ///
     /// TRIOPS will probe the registers according to the riscv-software-src/riscv-tests.
