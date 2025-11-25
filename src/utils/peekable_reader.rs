@@ -10,9 +10,9 @@ pub struct PeekableReader<T> {
 
 impl<T: Send + 'static> PeekableReader<T> {
     /// Creates a new `PeekableReader`
-    /// Argument `f` function / closure is called repeatedly
+    /// Argument `read_data` function / closure is called repeatedly
     /// Should yield a new value everytime that is send to the "receiver"
-    /// `f` is allowed to block infinitly
+    /// `read_data` is allowed to block infinitly
     pub fn new<F: Fn() -> T + Send + 'static>(read_data: F) -> Self {
         let (tx, rx): (mpsc::Sender<T>, mpsc::Receiver<T>) = mpsc::channel();
         let data_mux = Arc::new(Mutex::new(None));

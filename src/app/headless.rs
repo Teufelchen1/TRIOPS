@@ -1,94 +1,82 @@
+use crate::hifive1b::Hifive1b;
+use crate::utils::map_to_unixsocket;
 use std::io::{self, Read};
-use std::path::PathBuf;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::{Arc, Mutex};
 use std::thread::spawn;
 use std::thread::JoinHandle;
 
 use crate::cli;
-use crate::cpu::{create_cpu_thread, CPU};
+use crate::cpu::{create_cpu_thread, AddrBus, CPU};
 use crate::events::{CpuJob, Event};
-use crate::periph;
-use crate::periph::MmapPeripheral;
 
-fn input_thread(sender: &Sender<Event>) {
+fn input_thread(sender: &Sender<Event>, output: Option<&Sender<u8>>) {
     println!("Use ^D to terminate.");
     let mut buffer = [0; 1];
     while let Ok(size) = io::stdin().read(&mut buffer) {
         if size == 0 {
             break;
         }
+        if let Some(output) = output {
+            output.send(buffer[0]).unwrap();
+        }
     }
     sender.send(Event::ExitApp).unwrap();
 }
 
-fn create_input_thread(sender: Sender<Event>) -> JoinHandle<()> {
-    spawn(move || input_thread(&sender))
-}
-
-fn headless_unix_socket(config: &cli::Config, socket_path: &PathBuf) {
-    let (event_sender, event_receiver): (Sender<Event>, Receiver<Event>) = channel();
-    let (cpu_sender, cpu_reader): (Sender<CpuJob>, Receiver<CpuJob>) = channel();
-
-    let tty = periph::new_unix_socket_uart(event_sender.clone(), socket_path);
-    let cpu_val = if config.bin {
-        let entry = config.entryaddress;
-        let baseaddress = config.baseaddress;
-        CPU::from_bin(&config.file, tty, entry, baseaddress)
-    } else {
-        CPU::from_elf(&config.file, tty)
-    };
-    let cpu = Arc::new(Mutex::new(cpu_val));
-
-    create_input_thread(event_sender.clone());
-
-    cpu_job_loop(
-        config,
-        &cpu,
-        &event_receiver,
-        event_sender,
-        cpu_reader,
-        &cpu_sender,
-    );
-}
-
-fn headless_stdio(config: &cli::Config) {
-    let (event_sender, event_receiver): (Sender<Event>, Receiver<Event>) = channel();
-    let (cpu_sender, cpu_reader): (Sender<CpuJob>, Receiver<CpuJob>) = channel();
-
-    let tty = periph::new_stdio_uart(event_sender.clone());
-    let cpu_val = if config.bin {
-        let entry = config.entryaddress;
-        let baseaddress = config.baseaddress;
-        CPU::from_bin(&config.file, tty, entry, baseaddress)
-    } else {
-        CPU::from_elf(&config.file, tty)
-    };
-    let cpu = Arc::new(Mutex::new(cpu_val));
-    cpu_job_loop(
-        config,
-        &cpu,
-        &event_receiver,
-        event_sender,
-        cpu_reader,
-        &cpu_sender,
-    );
+fn create_input_thread(sender: Sender<Event>, output: Option<Sender<u8>>) -> JoinHandle<()> {
+    spawn(move || input_thread(&sender, output.as_ref()))
 }
 
 pub fn headless(config: &cli::Config) {
-    match config.uart_socket {
-        Some(ref path) => {
-            headless_unix_socket(config, path);
-        }
-        None => {
-            headless_stdio(config);
-        }
+    let (event_sender, event_receiver): (Sender<Event>, Receiver<Event>) = channel();
+    let (cpu_sender, cpu_reader): (Sender<CpuJob>, Receiver<CpuJob>) = channel();
+
+    let mut hifive1b = Hifive1b::new(event_sender.clone());
+
+    let uart0 = hifive1b.uart0channel.take().unwrap();
+    if let Some(path) = &config.uart0 {
+        map_to_unixsocket(uart0, path.clone());
+        create_input_thread(event_sender.clone(), None);
+    } else {
+        let (uart_tx, uart_rx) = uart0;
+        create_input_thread(event_sender.clone(), Some(uart_tx));
+        spawn(move || loop {
+            while let Ok(data) = uart_rx.recv() {
+                print!("{:}", data as char);
+            }
+        });
     }
+
+    let uart1 = hifive1b.uart1channel.take().unwrap();
+    if let Some(path) = &config.uart1 {
+        map_to_unixsocket(uart1, path.clone());
+    }
+
+    let memory_map = hifive1b.memory.take().unwrap();
+
+    let cpu_val = if config.bin {
+        let entry = config.entryaddress;
+        let baseaddress = config.baseaddress;
+        CPU::from_bin(&config.file, memory_map, entry, baseaddress)
+    } else {
+        CPU::from_elf(&config.file, memory_map)
+    };
+    let cpu = Arc::new(Mutex::new(cpu_val));
+
+    cpu_job_loop(
+        config,
+        &cpu,
+        &event_receiver,
+        event_sender,
+        cpu_reader,
+        &cpu_sender,
+    );
 }
 
 fn cpu_job_loop(
     config: &cli::Config,
-    cpu: &Arc<Mutex<CPU<impl MmapPeripheral + 'static>>>,
+    cpu: &Arc<Mutex<CPU<impl AddrBus + Send + 'static>>>,
     event_receiver: &Receiver<Event>,
     event_sender: Sender<Event>,
     cpu_reader: Receiver<CpuJob>,

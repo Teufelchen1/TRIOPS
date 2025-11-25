@@ -1,5 +1,8 @@
+use crate::hifive1b::Hifive1b;
+use crate::utils::map_to_unixsocket;
 use std::io;
 use std::sync::mpsc;
+use std::sync::mpsc::channel;
 use std::sync::mpsc::{Receiver, Sender};
 use std::sync::{Arc, Mutex};
 use std::thread::{spawn, JoinHandle};
@@ -14,9 +17,8 @@ use ratatui::{prelude::CrosstermBackend, Terminal};
 
 use super::ui::ViewState;
 use crate::cli;
-use crate::cpu::{create_cpu_thread, CPU};
+use crate::cpu::{create_cpu_thread, AddrBus, CPU};
 use crate::events::{CpuJob, Event};
-use crate::periph;
 
 pub enum Job {
     Step(usize),
@@ -53,7 +55,7 @@ fn create_input_thread(sender: Sender<Event>) -> JoinHandle<()> {
     spawn(move || input_thread(&sender))
 }
 
-fn event_loop_tui<T: periph::MmapPeripheral>(
+fn event_loop_tui<T: AddrBus>(
     input: &Receiver<Event>,
     cpu: &Arc<Mutex<CPU<T>>>,
     cpu_sender: &Sender<CpuJob>,
@@ -135,21 +137,37 @@ fn event_loop_tui<T: periph::MmapPeripheral>(
 }
 
 pub fn tui(config: &cli::Config) {
-    let (tx, tui_reader): (mpsc::Sender<u8>, mpsc::Receiver<u8>) = mpsc::channel();
-    let (tui_writer, rx): (mpsc::Sender<u8>, mpsc::Receiver<u8>) = mpsc::channel();
-    let (event_sender, event_reader): (mpsc::Sender<Event>, mpsc::Receiver<Event>) =
-        mpsc::channel();
-    let (cpu_sender, cpu_reader): (mpsc::Sender<CpuJob>, mpsc::Receiver<CpuJob>) = mpsc::channel();
+    let (_tx, mut tui_reader): (mpsc::Sender<u8>, mpsc::Receiver<u8>) = mpsc::channel();
+    let (mut tui_writer, _rx): (mpsc::Sender<u8>, mpsc::Receiver<u8>) = mpsc::channel();
 
-    let buffered = periph::new_buffered_uart(rx, tx, event_sender.clone());
+    let (event_sender, event_reader): (Sender<Event>, Receiver<Event>) = channel();
+    let (cpu_sender, cpu_reader): (Sender<CpuJob>, Receiver<CpuJob>) = channel();
+
+    let mut hifive1b = Hifive1b::new(event_sender.clone());
+
+    let uart0 = hifive1b.uart0channel.take().unwrap();
+    if let Some(path) = &config.uart0 {
+        map_to_unixsocket(uart0, path.clone());
+    } else {
+        let (uart_tx, uart_rx) = uart0;
+        tui_reader = uart_rx;
+        tui_writer = uart_tx;
+    }
+
+    let uart1 = hifive1b.uart1channel.take().unwrap();
+    if let Some(path) = &config.uart1 {
+        map_to_unixsocket(uart1, path.clone());
+    }
+
+    let memory_map = hifive1b.memory.take().unwrap();
 
     let cpu_val = {
         if config.bin {
             let entry = config.entryaddress;
             let baseaddress = config.baseaddress;
-            CPU::from_bin(&config.file, buffered, entry, baseaddress)
+            CPU::from_bin(&config.file, memory_map, entry, baseaddress)
         } else {
-            CPU::from_elf(&config.file, buffered)
+            CPU::from_elf(&config.file, memory_map)
         }
     };
 

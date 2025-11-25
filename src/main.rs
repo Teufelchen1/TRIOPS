@@ -11,8 +11,10 @@ mod app;
 mod cli;
 mod cpu;
 mod events;
+mod hifive1b;
 mod instructions;
 mod periph;
+mod utils;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = cli::Config::parse()?;

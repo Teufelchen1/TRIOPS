@@ -1,11 +1,8 @@
 //! This file is scoped to a single function: `exec()`.
 use std::cmp::{max, min};
 
-use super::CPU;
-use crate::{
-    instructions::{sign_extend, Instruction, RS1value, RS2value},
-    periph::MmapPeripheral,
-};
+use super::{AddrBus, CPU};
+use crate::instructions::{sign_extend, Instruction, RS1value, RS2value};
 
 macro_rules! add_signed {
     ($unsigned:expr, $signed:expr) => {{
@@ -17,7 +14,7 @@ macro_rules! add_signed {
     }};
 }
 
-impl<T: MmapPeripheral> CPU<T> {
+impl<T: AddrBus> CPU<T> {
     /// Executes one instruction.
     #[allow(clippy::too_many_lines)]
     pub fn exec(
@@ -439,7 +436,8 @@ impl<T: MmapPeripheral> CPU<T> {
                 let addr = rs1 as usize;
                 let value = self.memory.read_word(addr)?;
                 self.register.write(rdindex, value);
-                self.memory.reservation = Some((addr, value));
+                //self.memory.reservation = Some((addr, value));
+                self.memory.set_reservation(addr, value);
             }
             Instruction::SCW(rdindex, rs1index, rs2index) => {
                 let rs1: RS1value = self.register.read(rs1index);
@@ -449,13 +447,15 @@ impl<T: MmapPeripheral> CPU<T> {
                 let value = self.memory.read_word(addr)?;
 
                 self.register.write(rdindex, 1);
-                if let Some(reservation) = self.memory.reservation {
+                //if let Some(reservation) = self.memory.reservation {
+                if let Some(reservation) = self.memory.get_reservation() {
                     if reservation.0 == addr && reservation.1 == value {
                         self.memory.write_word(addr, rs2)?;
                         self.register.write(rdindex, 0);
                     }
                 }
-                self.memory.reservation = None;
+                //self.memory.reservation = None;
+                self.memory.del_reservation();
             }
             Instruction::AMOSWAPW(rdindex, rs1index, rs2index) => {
                 let addr_rs1: RS1value = self.register.read(rs1index);

@@ -1,7 +1,12 @@
-use super::{InterruptReason, MmapPeripheral, PeripheralBackend};
+use crate::events;
+use crate::periph::InterruptReason;
+use crate::periph::MmapPeripheral;
+use crate::utils::IOChannel;
+use crate::utils::PeekableChannel;
+use std::sync::mpsc;
 
 #[allow(clippy::struct_excessive_bools)]
-pub struct Uart<B> {
+pub struct Uart {
     tx_fifo_full: bool,
     tx_enable: bool,
     rx_enable: bool,
@@ -11,11 +16,12 @@ pub struct Uart<B> {
     rxwm_ie: bool,
     txwm_ip: bool, // watermark interrupt pending
     rxwm_ip: bool,
-    backend: B,
+    backend: PeekableChannel<u8>,
 }
-impl<B> Uart<B> {
-    pub fn default(backend: B) -> Self {
-        Uart {
+impl Uart {
+    pub fn default(interrupts: mpsc::Sender<events::Event>) -> (IOChannel, Self) {
+        let (iochannel, channel) = PeekableChannel::channel(interrupts);
+        let new_uart = Uart {
             tx_fifo_full: false,
             tx_enable: false,
             rx_enable: false,
@@ -25,12 +31,13 @@ impl<B> Uart<B> {
             rxwm_ie: false,
             txwm_ip: false, // watermark interrupt pending
             rxwm_ip: false,
-            backend,
-        }
+            backend: channel,
+        };
+        (iochannel, new_uart)
     }
 }
 
-impl<B: PeripheralBackend> Uart<B> {
+impl Uart {
     #[allow(clippy::match_same_arms)]
     fn read_uart(&self, address_offset: usize) -> u8 {
         match address_offset {
@@ -168,7 +175,7 @@ impl<B: PeripheralBackend> Uart<B> {
     }
 }
 
-impl<B: PeripheralBackend + Send> MmapPeripheral for Uart<B> {
+impl MmapPeripheral for Uart {
     fn read(&self, offset: usize) -> u8 {
         self.read_uart(offset)
     }
