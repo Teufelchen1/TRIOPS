@@ -1,8 +1,8 @@
 //! The terminal user interface is the scope of this file.
+use crate::cpu::AddrBus;
 use crate::cpu::Register;
 use crate::cpu::CPU;
 use crate::instructions::Instruction;
-use crate::periph::MmapPeripheral;
 use anyhow::Error;
 use crossterm::event::KeyEvent;
 use crossterm::event::MouseEvent;
@@ -94,7 +94,7 @@ impl ViewState {
         self.auto_step
     }
 
-    fn instruction_log_block<T: MmapPeripheral>(log: Rect, cpu: &CPU<T>) -> Paragraph<'_> {
+    fn instruction_log_block<T: AddrBus>(log: Rect, cpu: &CPU<T>) -> Paragraph<'_> {
         let log_height = log.height as usize;
         let last_inst = cpu.last_n_instructions(log_height - 2);
         let mut last_instruction_list: String = String::new();
@@ -114,7 +114,7 @@ impl ViewState {
         Paragraph::new(text).block(Block::bordered().title(vec![Span::from("Last Instructions")]))
     }
 
-    fn next_instruction_block<T: MmapPeripheral>(next: Rect, cpu: &CPU<T>) -> Paragraph<'_> {
+    fn next_instruction_block<T: AddrBus>(next: Rect, cpu: &CPU<T>) -> Paragraph<'_> {
         let next_height = next.height as usize;
         let mut next_inst = cpu.next_n_instructions(next_height - 1);
         let _ = next_inst.remove(0);
@@ -253,12 +253,7 @@ impl ViewState {
         frame.render_widget(paragraph, current_block);
     }
 
-    pub fn ui<T: MmapPeripheral>(
-        &mut self,
-        f: &mut Frame,
-        cpu: &CPU<T>,
-        uart_rx: &mpsc::Receiver<u8>,
-    ) {
+    pub fn ui<T: AddrBus>(&mut self, f: &mut Frame, cpu: &CPU<T>, uart_rx: &mpsc::Receiver<u8>) {
         let size = f.size();
 
         let chunks = Layout::default()

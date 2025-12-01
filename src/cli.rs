@@ -13,10 +13,15 @@ struct Args {
     #[arg(long, default_value_t = false, verbatim_doc_comment)]
     headless: bool,
 
-    /// If set, connects UART TX/RX to the specified unix socket.
-    /// If not set, the UART will be mapped to stdio.
-    #[arg(long, verbatim_doc_comment, requires("headless"))]
-    uart_socket: Option<std::path::PathBuf>,
+    /// If set, connects UART0 TX/RX to the specified unix socket.
+    /// If not set, the UART0 will be mapped to stdio.
+    #[arg(long, verbatim_doc_comment)]
+    uart0: Option<std::path::PathBuf>,
+
+    /// If set, connects UART1 TX/RX to the specified unix socket.
+    /// If not set, the UART1 will not be accessible.
+    #[arg(long, verbatim_doc_comment)]
+    uart1: Option<std::path::PathBuf>,
 
     /// If set, the emulation result will be checked.
     ///
@@ -52,7 +57,8 @@ struct Args {
 /// Longterm goal is having a `Config` struct that can be used to save & replay the emulator
 pub struct Config {
     pub headless: bool,
-    pub uart_socket: Option<std::path::PathBuf>,
+    pub uart0: Option<std::path::PathBuf>,
+    pub uart1: Option<std::path::PathBuf>,
     pub testing: bool,
     pub bin: bool,
     pub entryaddress: usize,
@@ -66,27 +72,16 @@ impl Config {
         let path = args.file;
         let file =
             std::fs::read(&path).context(format!("Could not read file {}", path.display()))?;
-        if let Some(ref socket_path) = args.uart_socket {
-            if socket_path.exists() {
-                let attr = std::fs::metadata(socket_path).context(format!(
-                    "Unable to create unixsocket for the UART backend: {}",
-                    socket_path.display()
-                ))?;
-                if attr.file_type().is_socket() {
-                    let _ = std::fs::remove_file(socket_path);
-                } else {
-                    return Err(anyhow!(std::io::ErrorKind::AlreadyExists)).context(format!(
-                        "Unable to create unixsocket for the UART backend: {}",
-                        socket_path.display()
-                    ));
-                }
-            }
-        }
+
+        clear_socket(args.uart0.as_ref())?;
+        clear_socket(args.uart1.as_ref())?;
+
         let entryaddress = usize_from_str(&args.entryaddress);
         let baseaddress = usize_from_str(&args.baseaddress);
         Ok(Self {
             headless: args.headless,
-            uart_socket: args.uart_socket,
+            uart0: args.uart0,
+            uart1: args.uart1,
             testing: args.testing,
             bin: args.bin,
             entryaddress,
@@ -94,6 +89,26 @@ impl Config {
             file,
         })
     }
+}
+
+fn clear_socket(uart_path: Option<&std::path::PathBuf>) -> anyhow::Result<()> {
+    if let Some(ref socket_path) = uart_path {
+        if socket_path.exists() {
+            let attr = std::fs::metadata(socket_path).context(format!(
+                "Unable to create unixsocket for the UART backend: {}",
+                socket_path.display()
+            ))?;
+            if attr.file_type().is_socket() {
+                let _ = std::fs::remove_file(socket_path);
+            } else {
+                return Err(anyhow!(std::io::ErrorKind::AlreadyExists)).context(format!(
+                    "Unable to create unixsocket for the UART backend: {}",
+                    socket_path.display()
+                ));
+            }
+        }
+    }
+    Ok(())
 }
 
 fn usize_from_str(text: &str) -> usize {

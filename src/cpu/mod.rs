@@ -11,10 +11,8 @@ use elf::ElfBytes;
 
 use crate::events::{CpuJob, Event};
 use crate::instructions::{decode, Instruction};
-use crate::periph::MmapPeripheral;
 
-use memory::Memory;
-
+pub use memory::AddrBus;
 pub use register::{index_to_name, Register};
 
 mod executer;
@@ -23,18 +21,18 @@ mod register;
 
 const LOG_LENGTH: usize = 80;
 
-pub struct CPU<T: MmapPeripheral> {
+pub struct CPU<T: AddrBus> {
     pub register: Register,
-    pub memory: Memory<T>,
+    pub memory: T,
     pub waits_for_interrupt: bool,
     instruction_log: [Option<(usize, Instruction)>; LOG_LENGTH],
 }
 
-impl<T: MmapPeripheral> CPU<T> {
-    pub fn from_elf(file: &[u8], uart: T) -> Self {
+impl<T: AddrBus> CPU<T> {
+    pub fn from_elf(file: &[u8], memory: T) -> Self {
         let mut cpu = Self {
             register: Register::default(),
-            memory: Memory::default_hifive(uart),
+            memory,
             waits_for_interrupt: false,
             instruction_log: array::from_fn(|_| None),
         };
@@ -46,18 +44,9 @@ impl<T: MmapPeripheral> CPU<T> {
         if let Some(segments) = elffile.segments() {
             for phdr in segments {
                 if phdr.p_type == abi::PT_LOAD {
-                    if let Ok(mut addr) = usize::try_from(phdr.p_paddr) {
-                        if cpu.memory.is_rom(addr) {
-                            for i in elffile.segment_data(&phdr).unwrap() {
-                                cpu.memory.rom[addr - cpu.memory.rom_base] = *i;
-                                addr += 1;
-                            }
-                        } else if cpu.memory.is_ram(addr) {
-                            for i in elffile.segment_data(&phdr).unwrap() {
-                                cpu.memory.ram[addr - cpu.memory.ram_base] = *i;
-                                addr += 1;
-                            }
-                        }
+                    if let Ok(addr) = usize::try_from(phdr.p_paddr) {
+                        let data = elffile.segment_data(&phdr).unwrap();
+                        cpu.memory.load_at(addr, data);
                     } else {
                         panic!("Could not get PT_LOAD address in your ELF file.");
                     }
@@ -73,25 +62,15 @@ impl<T: MmapPeripheral> CPU<T> {
         cpu
     }
 
-    pub fn from_bin(file: &[u8], uart: T, entry_address: usize, base_address: usize) -> Self {
+    pub fn from_bin(file: &[u8], memory: T, entry_address: usize, base_address: usize) -> Self {
         let mut cpu = Self {
             register: Register::default(),
-            memory: Memory::default_hifive(uart),
+            memory,
             waits_for_interrupt: false,
             instruction_log: array::from_fn(|_| None),
         };
 
-        if cpu.memory.is_rom(base_address) {
-            for (addr, i) in file.iter().enumerate() {
-                cpu.memory.rom[base_address - cpu.memory.rom_base + addr] = *i;
-            }
-        } else if cpu.memory.is_ram(base_address) {
-            for (addr, i) in file.iter().enumerate() {
-                cpu.memory.ram[base_address - cpu.memory.ram_base + addr] = *i;
-            }
-        } else {
-            panic!("The provided baseaddress was neither in ROM nor RAM.");
-        }
+        cpu.memory.load_at(base_address, file);
 
         cpu.register.pc = entry_address as u32;
 
@@ -203,7 +182,7 @@ impl<T: MmapPeripheral> CPU<T> {
     }
 }
 
-pub fn create_cpu_thread<T: MmapPeripheral + 'static>(
+pub fn create_cpu_thread<T: AddrBus + Send + 'static>(
     cpu: &Arc<Mutex<CPU<T>>>,
     sender: Sender<Event>,
     receiver: Receiver<CpuJob>,
@@ -212,7 +191,7 @@ pub fn create_cpu_thread<T: MmapPeripheral + 'static>(
     spawn(move || cpu_executor(&cpu2, &sender, &receiver))
 }
 
-fn cpu_executor<T: MmapPeripheral>(
+fn cpu_executor<T: AddrBus>(
     cpu: &Arc<Mutex<CPU<T>>>,
     sender: &Sender<Event>,
     receiver: &Receiver<CpuJob>,
