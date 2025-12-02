@@ -1,3 +1,5 @@
+use crate::events::IrqCause;
+
 /// This trait is the default interface for the CPU execution to the rest of the system.
 pub trait AddrBus {
     fn set_reservation(&mut self, addr: usize, value: u32);
@@ -6,7 +8,7 @@ pub trait AddrBus {
 
     fn del_reservation(&mut self);
 
-    fn pending_interrupt(&self) -> Option<u32>;
+    fn pending_interrupt(&self) -> Option<IrqCause>;
 
     fn is_ram(&self, addr: usize) -> bool;
 

@@ -9,7 +9,7 @@ use elf::abi;
 use elf::endian::AnyEndian;
 use elf::ElfBytes;
 
-use crate::events::{CpuJob, Event};
+use crate::events::{CpuJob, Event, IrqCause};
 use crate::instructions::{decode, Instruction};
 
 pub use memory::AddrBus;
@@ -141,6 +141,44 @@ impl<T: AddrBus> CPU<T> {
         }
     }
 
+    pub fn read_csr(&mut self, index: u32) -> u32 {
+        match index {
+            0xF11 => self.register.csr.mvendorid,
+            0xF12 => self.register.csr.marchid,
+            0xF13 => self.register.csr.mimpid,
+            0xF14 => self.register.csr.mhartid,
+            0xF15 => self.register.csr.mconfigptr,
+            0x300 => self.register.csr.mstatus,
+            0x301 => self.register.csr.misa,
+            0x302 => self.register.csr.medeleg,
+            0x303 => self.register.csr.mideleg,
+            0x304 => self.register.csr.mie,
+            0x305 => self.register.csr.mtvec,
+            0x306 => self.register.csr.mcounteren,
+            0x310 => self.register.csr.mstatush,
+            0x340 => self.register.csr.mscratch,
+            0x341 => self.register.csr.mepc,
+            0x342 => self.register.csr.mcause,
+            0x343 => self.register.csr.mtval,
+            0x344 => {
+                if let Some(irq_reason) = self.memory.pending_interrupt() {
+                    self.register.csr.mip |= match irq_reason {
+                        IrqCause::Uart => {
+                            register::MCAUSE::MachineExternalInterrupt as u32 & 0xffff
+                        }
+                        IrqCause::Timer => register::MCAUSE::MachineTimerInterrupt as u32 & 0xffff,
+                    }
+                }
+                self.register.csr.mip
+            }
+            0x34A => self.register.csr.mtinst,
+            0x34B => self.register.csr.mtval2,
+            _ => {
+                todo!();
+            }
+        }
+    }
+
     fn exception(&mut self, reason: register::MCAUSE) {
         self.register
             .csr
@@ -148,6 +186,7 @@ impl<T: AddrBus> CPU<T> {
         self.register.csr.mstatus_set_mie(false);
         self.register.csr.mepc = self.register.pc;
         self.register.csr.mcause = reason as u32;
+        self.register.csr.mip = reason as u32 & 0xffff;
         self.register.pc = self.register.csr.mtvec;
         self.waits_for_interrupt = false;
     }
@@ -157,8 +196,11 @@ impl<T: AddrBus> CPU<T> {
         // Interrupts are implicitly enabled when stalling the cpu due to WFI
         // Or directly enabled via MIE
         if self.waits_for_interrupt || self.register.csr.mstatus_get_mie() {
-            if let Some(_reason) = self.memory.pending_interrupt() {
-                self.exception(register::MCAUSE::MachineExternalInterrupt);
+            if let Some(irq_reason) = self.memory.pending_interrupt() {
+                match irq_reason {
+                    IrqCause::Uart => self.exception(register::MCAUSE::MachineExternalInterrupt),
+                    IrqCause::Timer => self.exception(register::MCAUSE::MachineTimerInterrupt),
+                }
                 return true;
             }
         }

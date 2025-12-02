@@ -1,5 +1,5 @@
 use crate::events;
-use crate::periph::InterruptReason;
+use crate::events::IrqCause;
 use crate::periph::MmapPeripheral;
 use crate::utils::IOChannel;
 use crate::utils::PeekableChannel;
@@ -20,7 +20,7 @@ pub struct Uart {
 }
 impl Uart {
     pub fn default(interrupts: mpsc::Sender<events::Event>) -> (IOChannel, Self) {
-        let (iochannel, channel) = PeekableChannel::channel(interrupts);
+        let (iochannel, channel) = PeekableChannel::channel(interrupts, events::IrqCause::Uart);
         let new_uart = Uart {
             tx_fifo_full: false,
             tx_enable: false,
@@ -176,15 +176,15 @@ impl Uart {
 }
 
 impl MmapPeripheral for Uart {
-    fn read(&self, offset: usize) -> u8 {
+    fn read_byte(&self, offset: usize) -> u8 {
         self.read_uart(offset)
     }
-    fn write(&mut self, offset: usize, value: u8) {
+    fn write_byte(&mut self, offset: usize, value: u8) {
         self.write_uart(offset, value);
     }
-    fn pending_interrupt(&self) -> Option<InterruptReason> {
+    fn pending_interrupt(&self) -> Option<IrqCause> {
         if self.rx_enable && self.rxwm_ie && self.backend.has_data() {
-            Some(0)
+            Some(IrqCause::Uart)
         } else {
             None
         }
