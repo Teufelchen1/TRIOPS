@@ -2,7 +2,10 @@
 use std::cmp::{max, min};
 
 use super::{AddrBus, CPU};
-use crate::instructions::{sign_extend, Instruction, RS1value, RS2value};
+use crate::{
+    cpu::register::MCAUSE,
+    instructions::{sign_extend, Instruction, RS1value, RS2value},
+};
 
 macro_rules! add_signed {
     ($unsigned:expr, $signed:expr) => {{
@@ -162,6 +165,9 @@ impl<T: AddrBus> CPU<T> {
                 let rs1: RS1value = self.register.read(rs1index);
                 let target = add_signed!(rs1, iimmediate) as usize;
                 let value = self.memory.read_word(target)?;
+                if target >= 0x200_BFF8 && target <= 0x0200_BFFF {
+                    println!("Read at PC {:X}", self.register.pc);
+                }
                 self.register.write(rdindex, value);
             }
             Instruction::LBU(rdindex, rs1index, iimmediate) => {
@@ -193,6 +199,10 @@ impl<T: AddrBus> CPU<T> {
                 let rs2: RS2value = self.register.read(rs2index);
                 let target = add_signed!(rs1, simmediate) as usize;
                 self.memory.write_word(target, rs2)?;
+                if target >= 0x200_BFF8 && target <= 0x0200_BFFF {
+                    self.register.csr.mip &= !(MCAUSE::MachineTimerInterrupt as u32);
+                    println!("Writing at PC {:X}", self.register.pc);
+                }
             }
             Instruction::ADDI(rdindex, rs1index, iimmediate) => {
                 let rs1: RS1value = self.register.read(rs1index);

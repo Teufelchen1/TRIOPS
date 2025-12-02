@@ -108,7 +108,7 @@ fn cpu_job_loop(
                     )
                 )
             }
-            Event::InterruptUart => {
+            Event::Interrupt(_type) => {
                 cpu_sender.send(CpuJob::CheckInterrupts).unwrap();
             }
             Event::ExitApp => {

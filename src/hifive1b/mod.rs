@@ -1,3 +1,4 @@
+use crate::events::IrqCause;
 use std::sync::mpsc;
 
 use crate::cpu::AddrBus;
@@ -5,8 +6,10 @@ use crate::events;
 use crate::periph::MmapPeripheral;
 use crate::utils::IOChannel;
 
+use timer::Timer;
 use uart::Uart;
 
+mod timer;
 mod uart;
 
 pub struct Hifive1b {
@@ -18,8 +21,9 @@ pub struct Hifive1b {
 impl Hifive1b {
     pub fn new(interrupts: mpsc::Sender<events::Event>) -> Self {
         let (uart0channel, uart0) = Uart::default(interrupts.clone());
-        let (uart1channel, uart1) = Uart::default(interrupts);
-        let memory = Memory::new(uart0, uart1);
+        let (uart1channel, uart1) = Uart::default(interrupts.clone());
+        let timer = Timer::default(interrupts);
+        let memory = Memory::new(uart0, uart1, timer);
         Self {
             uart0channel: Some(uart0channel),
             uart1channel: Some(uart1channel),
@@ -31,6 +35,7 @@ impl Hifive1b {
 pub struct Memory {
     clic_base: usize,
     clic_limit: usize,
+    timer: Timer,
     pub uart0_base: usize,
     pub uart0: Uart,
     pub uart0_limit: usize,
@@ -47,10 +52,11 @@ pub struct Memory {
 }
 
 impl Memory {
-    pub fn new(uart0: Uart, uart1: Uart) -> Self {
+    pub fn new(uart0: Uart, uart1: Uart, timer: Timer) -> Self {
         Self {
             clic_base: 0x200_0000,
-            clic_limit: 0x200c000,
+            clic_limit: 0x200_c000,
+            timer: timer,
             uart0_base: 0x1001_3000,
             uart0,
             uart0_limit: 0x1001_301C,
@@ -93,7 +99,7 @@ impl AddrBus for Memory {
         self.reservation = None;
     }
 
-    fn pending_interrupt(&self) -> Option<u32> {
+    fn pending_interrupt(&self) -> Option<IrqCause> {
         let i0 = self.uart0.pending_interrupt();
         if i0.is_some() {
             return i0;
@@ -101,6 +107,10 @@ impl AddrBus for Memory {
         let i1 = self.uart1.pending_interrupt();
         if i1.is_some() {
             return i1;
+        }
+        let i2 = self.timer.pending_interrupt();
+        if i2.is_some() {
+            return i2;
         }
         None
     }
@@ -157,13 +167,20 @@ impl AddrBus for Memory {
         }
         if self.is_clic(addr) {
             return match addr {
-                0x200_0000 => Ok(0), // msip for hart 0 MSIP Registers (1 bit wide)
-                0x200_4000 => Ok(0), // mtimecmp for hart 0 MTIMECMP Registers
-                0x200_bff8 => Ok(0), // mtime Timer register
+                0x200_0000..=0x0200_0003 => Ok(0), // msip for hart 0 MSIP Registers (1 bit wide)
+                0x200_4000..=0x0200_4007 => {
+                    // mtimecmp for hart 0 MTIMECMP Registers
+                    println!("Reading sleep timer");
+                    Ok(0)
+                }
+                0x200_BFF8..=0x0200_BFFF => {
+                    //println!("Reading timer");
+                    Ok(self.timer.read(addr - 0x200_BFF8).into())
+                } // mtime Timer register
                 _ => Err(anyhow::anyhow!(
                     "Clic: attempted read outside memory map at address: 0x{addr:08X}"
-                ))
-            }
+                )),
+            };
         }
 
         // FIXME: Temporal hack to get RIOT happy in-time for the 1.0 release
@@ -211,6 +228,24 @@ impl AddrBus for Memory {
                 .write(addr - self.uart1_base, (value & 0xFF) as u8);
             return Ok(());
         }
+        if self.is_clic(addr) {
+            if 0x200_4000 <= addr && addr <= 0x0200_4007 {
+                println!("Set byte mtimecmp {addr:X} for {value} seconds");
+            }
+            return match addr {
+                0x200_0000..=0x0200_0003 => Ok(()), // msip for hart 0 MSIP Registers (1 bit wide)
+                0x200_4000..=0x0200_4007 => {
+                    //println!("Set Sleep for {:} seconds", value);
+                    // mtimecmp for hart 0 MTIMECMP Registers
+                    self.timer.write(addr - 0x200_4000, value as u8);
+                    return Ok(());
+                }
+                0x200_BFF8..=0x0200_BFFF => Ok(()), // mtime Timer register
+                _ => Err(anyhow::anyhow!(
+                    "Clic: attempted write outside memory map at address: 0x{addr:08X}"
+                )),
+            };
+        }
 
         // FIXME: Temporal hack to get RIOT happy in-time for the 1.0 release
         #[allow(clippy::match_same_arms)]
@@ -233,5 +268,45 @@ impl AddrBus for Memory {
                 "Memory: attempted write outside writable memory map at address: 0x{addr:08X}"
             )),
         }
+    }
+
+    fn write_halfword(&mut self, index: usize, value: u32) -> anyhow::Result<()> {
+        if 0x200_4000 <= index && index <= 0x0200_4007 {
+            println!("Set half mtimecmp {index:X} for {value} seconds");
+        }
+        self.write_byte(index, value)?;
+        self.write_byte(index + 1, value >> 8)?;
+        Ok(())
+    }
+
+    fn write_word(&mut self, addr: usize, value: u32) -> anyhow::Result<()> {
+        if self.is_clic(addr) {
+            if 0x200_4000 <= addr && addr <= 0x0200_4007 {
+                //println!("Set word mtimecmp {addr:X} for {value} seconds");
+            }
+            return match addr {
+                0x200_0000..=0x0200_0003 => Ok(()), // msip for hart 0 MSIP Registers (1 bit wide)
+                0x200_4000..=0x0200_4003 => {
+                    //println!("Set Sleep for {:} seconds", value);
+                    // mtimecmp for hart 0 MTIMECMP Registers
+                    self.timer.set_timer(value.into());
+                    return Ok(());
+                }
+                0x200_4004..=0x0200_4007 => {
+                    //println!("higher Set Sleep for {:} seconds", value);
+                    // mtimecmp for hart 0 MTIMECMP Registers
+                    //self.timer.set_timer(value.into());
+                    return Ok(());
+                }
+                0x200_BFF8..=0x0200_BFFF => Ok(()), // mtime Timer register
+                _ => Err(anyhow::anyhow!(
+                    "Clic: attempted write outside memory map at address: 0x{addr:08X}"
+                )),
+            };
+        }
+
+        self.write_halfword(addr, value)?;
+        self.write_halfword(addr + 2, value >> 16)?;
+        Ok(())
     }
 }

@@ -9,7 +9,7 @@ use elf::abi;
 use elf::endian::AnyEndian;
 use elf::ElfBytes;
 
-use crate::events::{CpuJob, Event};
+use crate::events::{CpuJob, Event, IrqCause};
 use crate::instructions::{decode, Instruction};
 
 pub use memory::AddrBus;
@@ -148,6 +148,7 @@ impl<T: AddrBus> CPU<T> {
         self.register.csr.mstatus_set_mie(false);
         self.register.csr.mepc = self.register.pc;
         self.register.csr.mcause = reason as u32;
+        self.register.csr.mip = reason as u32 & 0xffff;
         self.register.pc = self.register.csr.mtvec;
         self.waits_for_interrupt = false;
     }
@@ -157,8 +158,11 @@ impl<T: AddrBus> CPU<T> {
         // Interrupts are implicitly enabled when stalling the cpu due to WFI
         // Or directly enabled via MIE
         if self.waits_for_interrupt || self.register.csr.mstatus_get_mie() {
-            if let Some(_reason) = self.memory.pending_interrupt() {
-                self.exception(register::MCAUSE::MachineExternalInterrupt);
+            if let Some(irq_reason) = self.memory.pending_interrupt() {
+                match irq_reason {
+                    IrqCause::Uart => self.exception(register::MCAUSE::MachineExternalInterrupt),
+                    IrqCause::Timer => self.exception(register::MCAUSE::MachineTimerInterrupt),
+                }
                 return true;
             }
         }

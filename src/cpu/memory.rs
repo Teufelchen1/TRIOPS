@@ -1,6 +1,8 @@
 //! This file is scoped around the `Memory` struct.
 //! If something can not be `impl Memory` it is considered out of scope.
 
+use crate::events::IrqCause;
+
 pub trait AddrBus {
     fn set_reservation(&mut self, addr: usize, value: u32);
 
@@ -8,7 +10,7 @@ pub trait AddrBus {
 
     fn del_reservation(&mut self);
 
-    fn pending_interrupt(&self) -> Option<u32>;
+    fn pending_interrupt(&self) -> Option<IrqCause>;
 
     fn is_ram(&self, addr: usize) -> bool;
 
@@ -35,12 +37,18 @@ pub trait AddrBus {
     fn write_byte(&mut self, addr: usize, value: u32) -> anyhow::Result<()>;
 
     fn write_halfword(&mut self, index: usize, value: u32) -> anyhow::Result<()> {
+        if 0x200_4000 <= index && index <= 0x0200_4007 {
+            println!("Set half mtimecmp {index:X} for {value} seconds");
+        }
         self.write_byte(index, value)?;
         self.write_byte(index + 1, value >> 8)?;
         Ok(())
     }
 
     fn write_word(&mut self, index: usize, value: u32) -> anyhow::Result<()> {
+        if 0x200_4000 <= index && index <= 0x0200_4007 {
+            println!("Set word mtimecmp {index:X} for {value} seconds");
+        }
         self.write_halfword(index, value)?;
         self.write_halfword(index + 2, value >> 16)?;
         Ok(())

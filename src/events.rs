@@ -11,6 +11,7 @@ pub enum CpuJob {
 #[derive(Clone)]
 pub enum IrqCause {
     Uart,
+    Timer,
 }
 
 pub enum Event {
@@ -20,5 +21,5 @@ pub enum Event {
     ExitApp,
     CpuStepComplete(bool),
     CpuPanic(Error),
-    Interrupt(IrqCause)
+    Interrupt(IrqCause),
 }

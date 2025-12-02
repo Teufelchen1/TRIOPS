@@ -90,7 +90,7 @@ fn event_loop_tui<T: AddrBus>(
                     }
                 }
                 Event::CpuPanic(err) => return Err(err),
-                Event::InterruptUart => {
+                Event::Interrupt(_type) => {
                     cpu_sender.send(CpuJob::CheckInterrupts)?;
                     Job::Idle
                 }

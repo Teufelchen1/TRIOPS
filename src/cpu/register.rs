@@ -222,8 +222,10 @@ impl CSR {
 // Machine Cause Register
 // The Interrupt bit (msb, the 31th) is set if the trap was caused by an interrupt.
 #[repr(u32)]
+#[derive(Clone, Copy)]
 pub enum MCAUSE {
     _MachineSoftwareInterrupt = 0x8000_0000 + 3,
+    MachineTimerInterrupt = 0x8000_0000 + 7,
     MachineExternalInterrupt = 0x8000_0000 + 11,
     _CounterOverflowInterrupt = 0x8000_0000 + 13,
     _InstructionAddressMisaligned = 0,
