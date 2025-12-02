@@ -1,6 +1,7 @@
 use std::sync::mpsc;
 
 use crate::events::Event;
+use crate::events::IrqCause;
 
 use super::PeekableReader;
 
@@ -14,12 +15,13 @@ pub struct PeekableChannel<T> {
 impl<T: Send + Default + 'static> PeekableChannel<T> {
     pub fn channel(
         interrupts: mpsc::Sender<Event>,
+        interrupt_type: IrqCause,
     ) -> ((mpsc::Sender<T>, mpsc::Receiver<T>), Self) {
         let (tx1, input): (mpsc::Sender<T>, mpsc::Receiver<T>) = mpsc::channel();
         let (output, rx2): (mpsc::Sender<T>, mpsc::Receiver<T>) = mpsc::channel();
         let reader = PeekableReader::new(move || {
             let data = input.recv().unwrap_or_else(|_| T::default());
-            let _ = interrupts.send(Event::InterruptUart);
+            let _ = interrupts.send(Event::Interrupt(interrupt_type.clone()));
             data
         });
         let new_self = Self {

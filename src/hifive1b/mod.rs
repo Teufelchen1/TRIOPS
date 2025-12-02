@@ -29,6 +29,8 @@ impl Hifive1b {
 }
 
 pub struct Memory {
+    clic_base: usize,
+    clic_limit: usize,
     pub uart0_base: usize,
     pub uart0: Uart,
     pub uart0_limit: usize,
@@ -47,6 +49,8 @@ pub struct Memory {
 impl Memory {
     pub fn new(uart0: Uart, uart1: Uart) -> Self {
         Self {
+            clic_base: 0x200_0000,
+            clic_limit: 0x200c000,
             uart0_base: 0x1001_3000,
             uart0,
             uart0_limit: 0x1001_301C,
@@ -69,6 +73,10 @@ impl Memory {
 
     fn is_uart1(&self, addr: usize) -> bool {
         self.uart1_base <= addr && addr < self.uart1_limit
+    }
+
+    fn is_clic(&self, addr: usize) -> bool {
+        self.clic_base <= addr && addr < self.clic_limit
     }
 }
 
@@ -147,6 +155,16 @@ impl AddrBus for Memory {
         if self.is_uart1(addr) {
             return Ok(u32::from(self.uart1.read(addr - self.uart1_base)));
         }
+        if self.is_clic(addr) {
+            return match addr {
+                0x200_0000 => Ok(0), // msip for hart 0 MSIP Registers (1 bit wide)
+                0x200_4000 => Ok(0), // mtimecmp for hart 0 MTIMECMP Registers
+                0x200_bff8 => Ok(0), // mtime Timer register
+                _ => Err(anyhow::anyhow!(
+                    "Clic: attempted read outside memory map at address: 0x{addr:08X}"
+                ))
+            }
+        }
 
         // FIXME: Temporal hack to get RIOT happy in-time for the 1.0 release
         #[allow(clippy::match_same_arms)]
@@ -171,9 +189,6 @@ impl AddrBus for Memory {
             }
             // GPIO
             0x1001_2000..=0x1001_2FFF => Ok(0xFF),
-            // timer?
-            0x0200_BFF8..=0x0200_BFFF => Ok(0),
-            0x0200_4000..=0x0200_4003 => Ok(0),
             _ => Err(anyhow::anyhow!(
                 "Memory: attempted read outside memory map at address: 0x{addr:08X}"
             )),
