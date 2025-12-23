@@ -30,12 +30,14 @@ Triops is a genus of small c**rust**aceans. They have three eyes 👀, live up t
 ### Limitations
 
 There is currently no PLIC/CLIC but there is a limited interrupt support for the most essential stuff. Control and status register (csr) are without effect.
+Most peripherals are not yet implemented. Most noteworthy the timer (wip).
 The hardware emulation of the [Hifive1b](https://www.sifive.com/boards/hifive1-rev-b) is not hardware accurate and not intended to be so.
 
 ## Requierments
 On the Rust side, handled by cargo: `clap`, `anyhow`, `ratatui`, `crossterm`, `elf`.
 
 For the `test_app`, which is in C: `riscv64-unknown-elf-gcc` and `riscv64-unknown-elf-objcopy`.
+(For MacOS users I recommend: `brew install riscv-software-src/riscv/riscv-gnu-toolchain`)
 
 For the RIOT example please refer to the RIOT documentation and the [Getting Started](https://guide.riot-os.org/getting-started/installing/) guide.
 
@@ -120,3 +122,21 @@ The purpose of this emulator is to teach me Rust and having fun with RISC-V. Rec
 * [EdJoPaTo](https://github.com/edjopato) for so much Rust feedback.
 * [Kosmas12](https://github.com/kosmas12) for implementing the Multiplication extension.
 * [Chrysn](https://github.com/chrysn) for responding to every single Rust-cry that I tooted on Mastodon.
+
+
+## Bonus exercise: Using Jelly with TRIOPS
+
+You can easily use [Jelly](https://github.com/teufelchen1/jelly) with TRIOPS.
+
+1. Build RIOT for Hifive1b with `slipdev` and `slipdev_stdio` enabled (optional: `slipdev_config`)
+2. Start the emulator, preferred in headless mode with `--headless`, mapping the first uart to a socket `--uart0 uart0socket`
+3. Run Jelly and attach it to the unixsocket: `jelly /path/to/uart0socket`
+4. Done! Enjoy [slipmux](https://github.com/teufelchen1/slipmux)!
+
+Exercise left for the curious: 
+You can also configure RIOT to use `slipdev` on both uarts!
+And since TRIOPS can map both uarts to unixsockets, you can attach two Jellys to the same RIOT simultaneously.
+Why would you do that? Well, Jelly can open a `tun` network interface and pass packets to RIOT.
+
+Easy: Can you ping RIOT via both tun interfaces?
+Pro: Can you make it so that a ping passes into RIOT via the first tun interface, is forwarded by RIOT and reaches your host again via the second tun?
