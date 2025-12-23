@@ -8,7 +8,6 @@ use crossterm::event::KeyEvent;
 use crossterm::event::MouseEvent;
 use ratatui::layout::Margin;
 use std::fmt::Write;
-use std::sync::mpsc;
 
 use crossterm::event::KeyCode;
 
@@ -201,17 +200,22 @@ impl ViewState {
         frame.render_widget(register_file_table, register_block);
     }
 
-    fn render_io(&mut self, io_block: Rect, uart_rx: &mpsc::Receiver<u8>, frame: &mut Frame) {
+    fn render_io(&mut self, io_block: Rect, frame: &mut Frame) {
         let right_block_down = Block::bordered()
-            .title(vec![Span::from("I/O")])
+            .title(vec![Span::from("UART0 TX")])
             .title_alignment(Alignment::Left);
 
-        while let Ok(msg) = uart_rx.try_recv() {
-            self.uart.push(msg as char);
-        }
         let text: &str = &self.uart;
         let text = Text::from(text);
-        let paragraph = Paragraph::new(text).block(right_block_down);
+        let text_height = u16::try_from(text.height()).unwrap_or(u16::MAX);
+        let scroll = if text_height >= io_block.height + 2 {
+            text_height - io_block.height + 2
+        } else {
+            0
+        };
+        let paragraph = Paragraph::new(text)
+            .block(right_block_down)
+            .scroll((scroll, 0));
         frame.render_widget(paragraph, io_block);
     }
 
@@ -219,7 +223,9 @@ impl ViewState {
         let right_block_bottom = {
             if self.insert_mode {
                 Block::bordered()
-                    .title(vec![Span::from("User Input to UART RX [Insert Mode]")])
+                    .title(vec![Span::from(
+                        "User Input to UART0 RX [Insert Mode, press `esc` to leave]",
+                    )])
                     .title_alignment(Alignment::Left)
             } else {
                 Block::bordered()
@@ -253,7 +259,7 @@ impl ViewState {
         frame.render_widget(paragraph, current_block);
     }
 
-    pub fn ui<T: AddrBus>(&mut self, f: &mut Frame, cpu: &CPU<T>, uart_rx: &mpsc::Receiver<u8>) {
+    pub fn ui<T: AddrBus>(&mut self, f: &mut Frame, cpu: &CPU<T>) {
         let size = f.size();
 
         let chunks = Layout::default()
@@ -302,7 +308,7 @@ impl ViewState {
         f.render_widget(paragraph, next_block);
 
         ViewState::render_registers(register_block, &cpu.register, f);
-        self.render_io(io_block, uart_rx, f);
+        self.render_io(io_block, f);
         self.render_input(input_block, f);
 
         if self.show_help {

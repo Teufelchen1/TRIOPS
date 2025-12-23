@@ -1,6 +1,4 @@
-//! This file is scoped around the `Memory` struct.
-//! If something can not be `impl Memory` it is considered out of scope.
-
+/// This trait is the default interface for the CPU execution to the rest of the system.
 pub trait AddrBus {
     fn set_reservation(&mut self, addr: usize, value: u32);
 
