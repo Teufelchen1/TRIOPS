@@ -19,7 +19,7 @@ While the `main.c` prints a hello-world and starts the RIOT shell.
 
 1. Clone RIOT. Because it is a git submodule, you can fetch it right here:
 ```sh
-git submodule update
+git submodule update --init
 ```
 
 2. Enter the `app/` directory and run gnu `make`
