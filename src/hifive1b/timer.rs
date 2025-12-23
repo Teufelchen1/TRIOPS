@@ -26,7 +26,6 @@ impl Timer {
             let (lock, cvar) = &*data_mux_clone;
             let dur = {
                 let data_available = lock.lock().unwrap();
-                //let data = cvar.wait(data_available).unwrap();
                 if data_available.is_some() {
                     let cycles = data_available.unwrap();
                     let cycles_per_ms = 33; // ~32.768
@@ -43,7 +42,6 @@ impl Timer {
                         println!("Interrupt: Timer");
                         *guard = None;
                         *time_passed_clone.lock().unwrap() += dur.as_millis() as u64;
-                        *irq_pending_clone.lock().unwrap() = Some(IrqCause::Timer);
                         *irq_pending_clone.lock().unwrap() = Some(IrqCause::Timer);
                         interrupts.send(Event::Interrupt(IrqCause::Timer)).unwrap();
                     }
@@ -71,6 +69,7 @@ impl Timer {
 impl MmapPeripheral for Timer {
     fn read(&self, offset: usize) -> u8 {
         (*self.time_passed.lock().unwrap() >> offset * 8) as u8
+        //0
     }
     fn write(&mut self, offset: usize, value: u8) {
         self.reg[offset] = value;
