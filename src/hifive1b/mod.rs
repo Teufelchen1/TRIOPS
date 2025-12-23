@@ -162,7 +162,9 @@ impl AddrBus for Memory {
                 }
             }
             0x0C00_0000..=0x0FFF_FFFF => Ok(0x00),
-            // RTT
+            // WDT
+            0x1000_0000..=0x1000_003F => Ok(0x00),
+            // RTC
             0x1000_0040..=0x1000_0080 => Ok(0x00),
             // PRCI
             0x1000_8000..=0x1000_800F => {
@@ -202,6 +204,8 @@ impl AddrBus for Memory {
         match addr {
             // PLIC
             0x0C00_0000..=0x0FFF_FFFF => Ok(()),
+            // WDT
+            0x1000_0000..=0x1000_003F => Ok(()),
             // RTT
             0x1000_0040..=0x1000_0080 => Ok(()),
             // PRCI
