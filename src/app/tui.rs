@@ -118,7 +118,11 @@ fn event_loop_tui<T: AddrBus>(
         }
 
         while let Ok(msg) = uart_rx.try_recv() {
-            input_app.uart.push(msg as char);
+            let msg = msg as char;
+            // Filter out, as it would mess with ratatui
+            if msg != '\r' && msg != '\t' {
+                input_app.uart.push(msg);
+            }
         }
 
         {
