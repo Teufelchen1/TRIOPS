@@ -1,3 +1,7 @@
 [submodule "tests/src"]
 	path = tests/src
 	url = git@github.com:riscv-software-src/riscv-tests.git
+[submodule "RIOT_App/RIOT"]
+	path = RIOT_App/RIOT
+	url = https://github.com/RIOT-OS/RIOT.git
+	shallow = true
