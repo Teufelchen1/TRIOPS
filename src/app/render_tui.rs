@@ -3,12 +3,13 @@ use crate::cpu::AddrBus;
 use crate::cpu::Register;
 use crate::cpu::CPU;
 use crate::instructions::Instruction;
+use crate::utils::UserInputManager;
 use anyhow::Error;
 use crossterm::event::KeyEvent;
 use crossterm::event::MouseEvent;
 use ratatui::layout::Margin;
+use ratatui::layout::Position;
 use std::fmt::Write;
-use std::sync::mpsc;
 
 use crossterm::event::KeyCode;
 
@@ -23,7 +24,7 @@ use super::tui::Job;
 
 pub struct ViewState {
     pub uart: String,
-    user_input: String,
+    user_input_manager: UserInputManager,
     auto_step: bool,
     show_help: bool,
     insert_mode: bool,
@@ -33,7 +34,7 @@ impl ViewState {
     pub fn new() -> Self {
         ViewState {
             uart: String::new(),
-            user_input: String::new(),
+            user_input_manager: UserInputManager::new(),
             auto_step: false,
             show_help: true,
             insert_mode: false,
@@ -43,15 +44,27 @@ impl ViewState {
     pub fn on_key(&mut self, key: KeyEvent) -> Job {
         if self.insert_mode {
             match key.code {
-                KeyCode::Char(ch) => self.user_input.push(ch),
+                KeyCode::Left => {
+                    self.user_input_manager.move_cursor_left();
+                }
+                KeyCode::Right => {
+                    self.user_input_manager.move_cursor_right();
+                }
+                KeyCode::Up => {
+                    self.user_input_manager.set_to_previous_input();
+                }
+                KeyCode::Down => {
+                    self.user_input_manager.set_to_next_input();
+                }
+                KeyCode::Char(to_insert) => self.user_input_manager.insert_char(to_insert),
                 KeyCode::Backspace => {
-                    _ = self.user_input.pop();
+                    self.user_input_manager.remove_char();
                 }
                 KeyCode::Enter => {
-                    self.user_input.push('\n');
-                    let job = Job::ReadUart(self.user_input.clone());
-                    self.user_input.clear();
-                    return job;
+                    if let Some(input) = self.user_input_manager.finish_current_input() {
+                        let job = Job::ReadUart(input);
+                        return job;
+                    }
                 }
                 KeyCode::Esc => {
                     self.insert_mode = false;
@@ -190,7 +203,7 @@ impl ViewState {
         let register_chunks = Layout::default()
             .direction(Direction::Horizontal)
             .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
-            .split(register_block.inner(&Margin {
+            .split(register_block.inner(Margin {
                 horizontal: 1,
                 vertical: 1,
             }));
@@ -201,17 +214,22 @@ impl ViewState {
         frame.render_widget(register_file_table, register_block);
     }
 
-    fn render_io(&mut self, io_block: Rect, uart_rx: &mpsc::Receiver<u8>, frame: &mut Frame) {
+    fn render_io(&mut self, io_block: Rect, frame: &mut Frame) {
         let right_block_down = Block::bordered()
-            .title(vec![Span::from("I/O")])
+            .title(vec![Span::from("UART0 TX")])
             .title_alignment(Alignment::Left);
 
-        while let Ok(msg) = uart_rx.try_recv() {
-            self.uart.push(msg as char);
-        }
         let text: &str = &self.uart;
         let text = Text::from(text);
-        let paragraph = Paragraph::new(text).block(right_block_down);
+        let text_height = u16::try_from(text.height()).unwrap_or(u16::MAX);
+        let scroll = if text_height >= io_block.height + 2 {
+            text_height - io_block.height + 2
+        } else {
+            0
+        };
+        let paragraph = Paragraph::new(text)
+            .block(right_block_down)
+            .scroll((scroll, 0));
         frame.render_widget(paragraph, io_block);
     }
 
@@ -219,20 +237,27 @@ impl ViewState {
         let right_block_bottom = {
             if self.insert_mode {
                 Block::bordered()
-                    .title(vec![Span::from("User Input to UART RX [Insert Mode]")])
+                    .title(vec![Span::from(
+                        "User Input to UART0 RX [Insert Mode, press `esc` to leave]",
+                    )])
                     .title_alignment(Alignment::Left)
             } else {
                 Block::bordered()
                     .title(vec![Span::from(
-                        "User Input to UART RX [Not in insert mode, press `i`]",
+                        "User Input to UART0 RX [Not in insert mode, press `i`]",
                     )])
                     .title_alignment(Alignment::Left)
             }
         };
 
-        let text: &str = &self.user_input;
+        let text: &str = &self.user_input_manager.user_input;
         let text = Text::from(text);
         let paragraph = Paragraph::new(text).block(right_block_bottom);
+
+        let x_pos =
+            input_block.x + 1 + u16::try_from(self.user_input_manager.cursor_position).unwrap_or(0);
+
+        frame.set_cursor_position(Position::new(x_pos, input_block.y + 1));
         frame.render_widget(paragraph, input_block);
     }
 
@@ -253,13 +278,13 @@ impl ViewState {
         frame.render_widget(paragraph, current_block);
     }
 
-    pub fn ui<T: AddrBus>(&mut self, f: &mut Frame, cpu: &CPU<T>, uart_rx: &mpsc::Receiver<u8>) {
-        let size = f.size();
+    pub fn ui<T: AddrBus>(&mut self, f: &mut Frame, cpu: &CPU<T>) {
+        let area = f.area();
 
         let chunks = Layout::default()
             .direction(Direction::Horizontal)
             .constraints([Constraint::Percentage(25), Constraint::Percentage(75)].as_ref())
-            .split(size);
+            .split(area);
 
         let left_chunks = Layout::default()
             .direction(Direction::Vertical)
@@ -302,7 +327,7 @@ impl ViewState {
         f.render_widget(paragraph, next_block);
 
         ViewState::render_registers(register_block, &cpu.register, f);
-        self.render_io(io_block, uart_rx, f);
+        self.render_io(io_block, f);
         self.render_input(input_block, f);
 
         if self.show_help {
@@ -311,9 +336,9 @@ impl ViewState {
                 "Key shortcuts:\n'a' to enable auto-step\n'h' for help\n's' to step one instruction\n'q' to quit\n'i' to enter insert mode\n  'ENTER' to send your input to the uart\n  'ESC' to leave the insert mode",
             )
             .block(block);
-            let area = centered_rect(60, 29, size);
-            f.render_widget(Clear, area);
-            f.render_widget(help_message, area);
+            let popup_area = centered_rect(60, 29, area);
+            f.render_widget(Clear, popup_area);
+            f.render_widget(help_message, popup_area);
         }
     }
 }

@@ -15,7 +15,7 @@ use crossterm::{
 };
 use ratatui::{prelude::CrosstermBackend, Terminal};
 
-use super::ui::ViewState;
+use super::render_tui::ViewState;
 use crate::cli;
 use crate::cpu::{create_cpu_thread, AddrBus, CPU};
 use crate::events::{CpuJob, Event};
@@ -72,7 +72,7 @@ fn event_loop_tui<T: AddrBus>(
 
     {
         let cpu = cpu.lock().unwrap();
-        terminal.draw(|f| input_app.ui(f, &cpu, uart_rx))?;
+        terminal.draw(|f| input_app.ui(f, &cpu))?;
     }
 
     loop {
@@ -117,9 +117,17 @@ fn event_loop_tui<T: AddrBus>(
             }
         }
 
+        while let Ok(msg) = uart_rx.try_recv() {
+            let msg = msg as char;
+            // Filter out, as it would mess with ratatui
+            if msg != '\r' && msg != '\t' {
+                input_app.uart.push(msg);
+            }
+        }
+
         {
             let cpu = cpu.lock().unwrap();
-            terminal.draw(|f| input_app.ui(f, &cpu, uart_rx))?;
+            terminal.draw(|f| input_app.ui(f, &cpu))?;
         }
     }
 
