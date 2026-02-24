@@ -313,11 +313,12 @@ impl<T: AddrBus> CPU<T> {
                 self.register.pc = self.register.csr.mepc;
             }
             Instruction::CSRRW(rd_index, rs1, i_imm) => {
-                self.register.write(rd_index, self.register.csr.read(i_imm));
+                let csr_value = self.read_csr(i_imm);
+                self.register.write(rd_index, csr_value);
                 self.register.csr.write(i_imm, self.register.read(rs1));
             }
             Instruction::CSRRS(rd_index, rs1, i_imm) => {
-                let csr_value = self.register.csr.read(i_imm);
+                let csr_value = self.read_csr(i_imm);
                 self.register.write(rd_index, csr_value);
                 if rs1 != 0 {
                     self.register
@@ -326,7 +327,7 @@ impl<T: AddrBus> CPU<T> {
                 }
             }
             Instruction::CSRRC(rd_index, rs1, i_imm) => {
-                let csr_value = self.register.csr.read(i_imm);
+                let csr_value = self.read_csr(i_imm);
                 self.register.write(rd_index, csr_value);
                 if rs1 != 0 {
                     self.register
@@ -338,14 +339,15 @@ impl<T: AddrBus> CPU<T> {
                 // rs1 is actual an immediate
                 let uimm = u32::try_from(rs1).unwrap();
                 if rd_index != 0 {
-                    self.register.write(rd_index, self.register.csr.read(i_imm));
+                    let csr_value = self.read_csr(i_imm);
+                    self.register.write(rd_index, csr_value);
                 }
                 self.register.csr.write(i_imm, uimm);
             }
             Instruction::CSRRSI(rd_index, rs1, i_imm) => {
                 // rs1 is actual an immediate
                 let uimm = u32::try_from(rs1).unwrap();
-                let csr_value = self.register.csr.read(i_imm);
+                let csr_value = self.read_csr(i_imm);
                 self.register.write(rd_index, csr_value);
                 if uimm != 0 {
                     self.register.csr.write(i_imm, uimm | csr_value);
@@ -354,7 +356,7 @@ impl<T: AddrBus> CPU<T> {
             Instruction::CSRRCI(rd_index, rs1, i_imm) => {
                 // rs1 is actual an immediate
                 let uimm = u32::try_from(rs1).unwrap();
-                let csr_value = self.register.csr.read(i_imm);
+                let csr_value = self.read_csr(i_imm);
                 self.register.write(rd_index, csr_value);
                 if uimm != 0 {
                     self.register.csr.write(i_imm, !uimm & csr_value);

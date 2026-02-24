@@ -69,34 +69,6 @@ pub struct CSR {
 
 #[allow(clippy::manual_range_patterns)]
 impl CSR {
-    pub fn read(&self, index: u32) -> u32 {
-        match index {
-            0xF11 => self.mvendorid,
-            0xF12 => self.marchid,
-            0xF13 => self.mimpid,
-            0xF14 => self.mhartid,
-            0xF15 => self.mconfigptr,
-            0x300 => self.mstatus,
-            0x301 => self.misa,
-            0x302 => self.medeleg,
-            0x303 => self.mideleg,
-            0x304 => self.mie,
-            0x305 => self.mtvec,
-            0x306 => self.mcounteren,
-            0x310 => self.mstatush,
-            0x340 => self.mscratch,
-            0x341 => self.mepc,
-            0x342 => self.mcause,
-            0x343 => self.mtval,
-            0x344 => self.mip,
-            0x34A => self.mtinst,
-            0x34B => self.mtval2,
-            _ => {
-                todo!();
-            }
-        }
-    }
-
     pub fn write(&mut self, index: u32, value: u32) {
         match index {
             0xF11 | 0xF12 | 0xF13 | 0xF14 | 0xF15 => {
@@ -118,7 +90,10 @@ impl CSR {
                 self.mideleg = 0;
             }
             0x304 => {
-                self.mie = 0;
+                // bit  3 Machine Software Interrupt Enable
+                // bit  7 Machine Timer Interrupt Enable
+                // bit 11 Machine External Interrupt Enable
+                self.mie = value;
             }
             0x305 => {
                 if !value.is_multiple_of(4) {
@@ -144,6 +119,26 @@ impl CSR {
                 self.mepc = value;
             }
             0x342 => {
+                // Interrrupt, Code
+                //          1,  0–2 Reserved
+                //          1,    3 Machine software interrupt
+                //          1,  4–6 Reserved
+                //          1,    7 Machine timer interrupt
+                //          1, 8–10 Reserved
+                //          1,   11 Machine external interrupt
+                //          1, ≥ 12 Reserved
+                //          0,    0 Instruction address misaligned
+                //          0,    1 Instruction access fault
+                //          0,    2 Illegal instruction
+                //          0,    3 Breakpoint
+                //          0,    4 Load address misaligned
+                //          0,    5 Load access fault
+                //          0,    6 Store/AMO address misaligned
+                //          0,    7 Store/AMO access fault
+                //          0,    8 Environment call from U-mode
+                //          0, 9–10 Reserved
+                //          0,   11 Environment call from M-mode
+                //          0, ≥ 12 Reserved
                 self.mcause = value;
             }
             0x343 => {
@@ -152,7 +147,9 @@ impl CSR {
             }
             0x344 => {
                 println!("Ingoring write of {value:X} into mip");
-                self.mip = 0;
+                // bit  3 Machine Software Interrupt Pending
+                // bit  7 Machine Timer Interrupt Pending
+                // bit 11 Machine External Interrupt Pending
             }
             0x34A => {
                 println!("Ingoring write of {value:X} into mtinst");
@@ -196,8 +193,10 @@ impl CSR {
 // Machine Cause Register
 // The Interrupt bit (msb, the 31th) is set if the trap was caused by an interrupt.
 #[repr(u32)]
+#[derive(Clone, Copy)]
 pub enum MCAUSE {
     _MachineSoftwareInterrupt = 0x8000_0000 + 3,
+    MachineTimerInterrupt = 0x8000_0000 + 7,
     MachineExternalInterrupt = 0x8000_0000 + 11,
     _CounterOverflowInterrupt = 0x8000_0000 + 13,
     _InstructionAddressMisaligned = 0,

@@ -8,6 +8,12 @@ pub enum CpuJob {
     CheckInterrupts,
 }
 
+#[derive(Clone)]
+pub enum IrqCause {
+    Uart,
+    Timer,
+}
+
 pub enum Event {
     TerminalKey(KeyEvent),
     TerminalMouse(MouseEvent),
@@ -15,5 +21,5 @@ pub enum Event {
     ExitApp,
     CpuStepComplete(bool),
     CpuPanic(Error),
-    InterruptUart,
+    Interrupt(IrqCause),
 }
