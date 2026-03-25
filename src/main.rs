@@ -20,7 +20,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = cli::Config::parse()?;
 
     if config.headless {
-        app::headless::headless(&config);
+        app::headless::headless(&config)?;
     } else {
         app::tui::tui(&config);
     }

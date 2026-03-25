@@ -26,8 +26,10 @@ for file in src/isa/rv32ui-p-* src/isa/rv32um-p-* src/isa/rv32uc-p-*; do
 	fi
 
 	# riscv64-unknown-elf-objcopy --strip-debug -O binary ${file} ./test.hex
-
-	ret=0; ../target/debug/rv --file ${file} --headless --testing &> /dev/null || ret=$?
+	
+	ret=0; # ../target/debug/triops --headless --testing ${file} &> /dev/null || ret=$?
+	../target/debug/triops --headless --testing ${file} > /dev/null || ret=$?
+	# ret=$?
 	if [ "${ret}" -ne 0 ]; then
 		exit=1
 		printf "FAIL ❌\n"

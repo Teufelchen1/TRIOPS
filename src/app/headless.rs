@@ -11,7 +11,6 @@ use crate::cpu::{create_cpu_thread, AddrBus, CPU};
 use crate::events::{CpuJob, Event};
 
 fn input_thread(sender: &Sender<Event>, output: Option<&Sender<u8>>) {
-    println!("Use ^D to terminate.");
     let mut buffer = [0; 1];
     while let Ok(size) = io::stdin().read(&mut buffer) {
         if size == 0 {
@@ -28,7 +27,10 @@ fn create_input_thread(sender: Sender<Event>, output: Option<Sender<u8>>) -> Joi
     spawn(move || input_thread(&sender, output.as_ref()))
 }
 
-pub fn headless(config: &cli::Config) {
+pub fn headless(config: &cli::Config) -> anyhow::Result<()> {
+    if !config.testing {
+        println!("Use ^D to terminate.");
+    }
     let (event_sender, event_receiver): (Sender<Event>, Receiver<Event>) = channel();
     let (cpu_sender, cpu_reader): (Sender<CpuJob>, Receiver<CpuJob>) = channel();
 
@@ -71,7 +73,7 @@ pub fn headless(config: &cli::Config) {
         event_sender,
         cpu_reader,
         &cpu_sender,
-    );
+    )
 }
 
 fn cpu_job_loop(
@@ -81,7 +83,7 @@ fn cpu_job_loop(
     event_sender: Sender<Event>,
     cpu_reader: Receiver<CpuJob>,
     cpu_sender: &Sender<CpuJob>,
-) {
+) -> anyhow::Result<()> {
     create_cpu_thread(&Arc::clone(cpu), event_sender, cpu_reader);
 
     cpu_sender.send(CpuJob::AutoStep).unwrap();
@@ -121,11 +123,9 @@ fn cpu_job_loop(
     if config.testing {
         let cpu = cpu.lock().unwrap();
         let reg = cpu.register.read(17);
-        if reg != 93 {
-            println!("Test failed: {:}", cpu.register.read(10));
-        }
-        assert!(cpu.register.read(17) == 93, "Test failed");
+        anyhow::ensure!(reg == 93);
     } else {
         println!("Done!");
     }
+    Ok(())
 }

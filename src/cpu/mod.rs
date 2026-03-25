@@ -26,6 +26,7 @@ pub struct CPU<T: AddrBus> {
     pub memory: T,
     pub waits_for_interrupt: bool,
     instruction_log: [Option<(usize, Instruction)>; LOG_LENGTH],
+    addr2line: addr2line::Loader,
 }
 
 impl<T: AddrBus> CPU<T> {
@@ -35,6 +36,7 @@ impl<T: AddrBus> CPU<T> {
             memory,
             waits_for_interrupt: false,
             instruction_log: array::from_fn(|_| None),
+            addr2line: addr2line::Loader::new("hello-world.elf").unwrap(),
         };
         cpu.register.csr.mie = 1;
 
@@ -68,6 +70,7 @@ impl<T: AddrBus> CPU<T> {
             memory,
             waits_for_interrupt: false,
             instruction_log: array::from_fn(|_| None),
+            addr2line: addr2line::Loader::new("hello-world.elf").unwrap(),
         };
 
         cpu.memory.load_at(base_address, file);
@@ -209,18 +212,15 @@ impl<T: AddrBus> CPU<T> {
 
     /// Returns true for all instructions except when executing ebreak.
     /// ebreak is used to signal the termination of the programm.
-    pub fn step(&mut self) -> anyhow::Result<bool> {
+    pub fn step(&mut self, addr: usize, inst: Instruction) -> anyhow::Result<()> {
         self.check_interrupts();
         // Stall when waiting for interrupts
-        if self.waits_for_interrupt {
-            Ok(true)
-        } else {
-            let (addr, inst) = self.current_instruction()?;
+        if !self.waits_for_interrupt {
             self.exec(&inst, true, true)?;
             self.instruction_log.rotate_left(1);
             self.instruction_log[LOG_LENGTH - 1] = Some((addr, inst.clone()));
-            Ok(!matches!(inst, Instruction::EBREAK()))
         }
+        Ok(())
     }
 }
 
@@ -286,17 +286,32 @@ fn cpu_executor<T: AddrBus>(
         {
             let mut cpu = cpu.lock().unwrap();
             for _ in 0..steps {
-                match cpu.step() {
-                    Ok(con_exe) => {
-                        if !con_exe {
-                            continue_exec = false;
-                            break;
+                let (addr, inst) = cpu.current_instruction().unwrap();
+                if matches!(inst, Instruction::EBREAK()) {
+                    continue_exec = false;
+                    break;
+                }
+                match inst {
+                    Instruction::JAL(_, immediate) => {
+                        let destination = if immediate.is_negative() {
+                            addr.wrapping_sub(immediate.unsigned_abs() as usize)
+                        } else {
+                            addr.wrapping_add(immediate.unsigned_abs() as usize)
+                        };
+                        if let Ok(Some(location)) = cpu.addr2line.find_location(destination as u64)
+                        {
+                            let file = location.file.unwrap_or("???");
+                            let line = location.line.unwrap_or(0);
+                            println!("Jumping from 0x{addr:x} to 0x{destination:x}:{file}:{line}");
+                        } else {
+                            println!("Jumping to 0x{destination:x}");
                         }
                     }
-                    Err(err) => {
-                        sender.send(Event::CpuPanic(err)).unwrap();
-                        return;
-                    }
+                    _ => (),
+                }
+                if let Err(err) = cpu.step(addr, inst) {
+                    sender.send(Event::CpuPanic(err)).unwrap();
+                    return;
                 }
             }
         }
