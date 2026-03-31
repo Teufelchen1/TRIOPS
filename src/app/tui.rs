@@ -92,7 +92,7 @@ fn event_loop_tui<T: AddrBus>(
                     }
                 }
                 Event::CpuPanic(err) => return Err(err),
-                Event::CpuObserved(addr, inst) => {
+                Event::CpuObserved(addr, inst, _) => {
                     if matches!(inst, Instruction::CJALR(_)) && addr == 0x20012108 {
                         Job::AutoStepOff
                     } else {
@@ -105,7 +105,8 @@ fn event_loop_tui<T: AddrBus>(
                                 };
 
                                 if let Some(ref addr2line) = addr2line {
-                                    if let Ok(Some(location)) = addr2line.find_location(destination as u64)
+                                    if let Ok(Some(location)) =
+                                        addr2line.find_location(destination as u64)
                                     {
                                         let file = location.file.unwrap_or("???");
                                         let line = location.line.unwrap_or(0);

@@ -40,7 +40,7 @@ pub fn index_to_name(register: Rindex) -> &'static str {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct CSR {
     /* Machine Information Registers */
     pub mvendorid: u32,
@@ -216,7 +216,7 @@ pub enum MCAUSE {
     _HardwareError = 19,
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Register {
     regs: [u32; 32],
     pub csr: CSR,

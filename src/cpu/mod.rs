@@ -293,16 +293,24 @@ fn cpu_executor<T: AddrBus>(
                 }
                 match inst {
                     Instruction::JAL(_rd, _immediate) => {
-                        sender.send(Event::CpuObserved(addr, inst.clone())).unwrap();
+                        sender
+                            .send(Event::CpuObserved(addr, inst.clone(), cpu.register.clone()))
+                            .unwrap();
                     }
                     Instruction::JALR(_rd, _rs, _immediate) => {
-                        sender.send(Event::CpuObserved(addr, inst.clone())).unwrap();
+                        sender
+                            .send(Event::CpuObserved(addr, inst.clone(), cpu.register.clone()))
+                            .unwrap();
                     }
                     Instruction::CJAL(_immediate) => {
-                        sender.send(Event::CpuObserved(addr, inst.clone())).unwrap();
+                        sender
+                            .send(Event::CpuObserved(addr, inst.clone(), cpu.register.clone()))
+                            .unwrap();
                     }
                     Instruction::CJALR(_rs) => {
-                        sender.send(Event::CpuObserved(addr, inst.clone())).unwrap();
+                        sender
+                            .send(Event::CpuObserved(addr, inst.clone(), cpu.register.clone()))
+                            .unwrap();
                     }
                     _ => (),
                 }
