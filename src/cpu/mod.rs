@@ -26,7 +26,7 @@ pub struct CPU<T: AddrBus> {
     pub memory: T,
     pub waits_for_interrupt: bool,
     instruction_log: [Option<(usize, Instruction)>; LOG_LENGTH],
-    addr2line: addr2line::Loader,
+    addr2line: Option<addr2line::Loader>,
 }
 
 impl<T: AddrBus> CPU<T> {
@@ -36,7 +36,7 @@ impl<T: AddrBus> CPU<T> {
             memory,
             waits_for_interrupt: false,
             instruction_log: array::from_fn(|_| None),
-            addr2line: addr2line::Loader::new("hello-world.elf").unwrap(),
+            addr2line: None,
         };
         cpu.register.csr.mie = 1;
 
@@ -70,7 +70,7 @@ impl<T: AddrBus> CPU<T> {
             memory,
             waits_for_interrupt: false,
             instruction_log: array::from_fn(|_| None),
-            addr2line: addr2line::Loader::new("hello-world.elf").unwrap(),
+            addr2line: None,
         };
 
         cpu.memory.load_at(base_address, file);
@@ -292,26 +292,26 @@ fn cpu_executor<T: AddrBus>(
                     break;
                 }
                 match inst {
-                    Instruction::JAL(_, immediate) => {
-                        let destination = if immediate.is_negative() {
-                            addr.wrapping_sub(immediate.unsigned_abs() as usize)
-                        } else {
-                            addr.wrapping_add(immediate.unsigned_abs() as usize)
-                        };
-                        if let Ok(Some(location)) = cpu.addr2line.find_location(destination as u64)
-                        {
-                            let file = location.file.unwrap_or("???");
-                            let line = location.line.unwrap_or(0);
-                            println!("Jumping from 0x{addr:x} to 0x{destination:x}:{file}:{line}");
-                        } else {
-                            println!("Jumping to 0x{destination:x}");
-                        }
+                    Instruction::JAL(_rd, _immediate) => {
+                        sender.send(Event::CpuObserved(addr, inst.clone())).unwrap();
+                    }
+                    Instruction::JALR(_rd, _rs, _immediate) => {
+                        sender.send(Event::CpuObserved(addr, inst.clone())).unwrap();
+                    }
+                    Instruction::CJAL(_immediate) => {
+                        sender.send(Event::CpuObserved(addr, inst.clone())).unwrap();
+                    }
+                    Instruction::CJALR(_rs) => {
+                        sender.send(Event::CpuObserved(addr, inst.clone())).unwrap();
                     }
                     _ => (),
                 }
                 if let Err(err) = cpu.step(addr, inst) {
                     sender.send(Event::CpuPanic(err)).unwrap();
                     return;
+                }
+                if addr == 0x20012106 {
+                    break;
                 }
             }
         }

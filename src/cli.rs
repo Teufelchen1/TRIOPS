@@ -64,6 +64,7 @@ pub struct Config {
     pub entryaddress: usize,
     pub baseaddress: usize,
     pub file: Vec<u8>,
+    pub addr2line: Option<addr2line::Loader>,
 }
 
 impl Config {
@@ -72,6 +73,8 @@ impl Config {
         let path = args.file;
         let file =
             std::fs::read(&path).context(format!("Could not read file {}", path.display()))?;
+
+        let addr2line = addr2line::Loader::new(path).ok();
 
         clear_socket(args.uart0.as_ref())?;
         clear_socket(args.uart1.as_ref())?;
@@ -87,6 +90,7 @@ impl Config {
             entryaddress,
             baseaddress,
             file,
+            addr2line,
         })
     }
 }

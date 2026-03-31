@@ -1,4 +1,5 @@
 use crate::hifive1b::Hifive1b;
+use crate::instructions::Instruction;
 use crate::utils::map_to_unixsocket;
 use std::io::{self, Read};
 use std::sync::mpsc::{channel, Receiver, Sender};
@@ -109,6 +110,68 @@ fn cpu_job_loop(
                         cpu.register.pc, err
                     )
                 )
+            }
+            Event::CpuObserved(addr, inst) => {
+                match inst {
+                    Instruction::JAL(_, immediate) | Instruction::CJAL(immediate) => {
+                        let destination = if immediate.is_negative() {
+                            addr.wrapping_sub(immediate.unsigned_abs() as usize)
+                        } else {
+                            addr.wrapping_add(immediate.unsigned_abs() as usize)
+                        };
+
+                        if let Some(ref addr2line) = config.addr2line {
+                            if let Ok(Some(location)) = addr2line.find_location(destination as u64)
+                            {
+                                let file = location.file.unwrap_or("???");
+                                let line = location.line.unwrap_or(0);
+                                println!("cJAL  0x{addr:x}->0x{destination:x}:{file}:{line}");
+                            } else {
+                                println!("cJAL to 0x{destination:x}");
+                            }
+                        }
+                    }
+                    Instruction::CJALR(rs) => {
+                        let destination = {
+                            let cpu = cpu.lock().unwrap();
+                            cpu.register.read(rs)
+                        };
+
+                        if let Some(ref addr2line) = config.addr2line {
+                            if let Ok(Some(location)) = addr2line.find_location(destination as u64)
+                            {
+                                let file = location.file.unwrap_or("???");
+                                let line = location.line.unwrap_or(0);
+                                println!("CJALR 0x{addr:x}->0x{destination:x}:{file}:{line}");
+                            } else {
+                                println!("CJALR({rs}) 0x{addr:x}->0x{destination:x}");
+                            }
+                        }
+                    }
+                    Instruction::JALR(_, rs, immediate) => {
+                        let addr = {
+                            let cpu = cpu.lock().unwrap();
+                            cpu.register.read(rs)
+                        };
+                        let destination = if immediate.is_negative() {
+                            addr.wrapping_sub(immediate.unsigned_abs())
+                        } else {
+                            addr.wrapping_add(immediate.unsigned_abs())
+                        };
+
+                        if let Some(ref addr2line) = config.addr2line {
+                            if let Ok(Some(location)) = addr2line.find_location(destination as u64)
+                            {
+                                let file = location.file.unwrap_or("???");
+                                let line = location.line.unwrap_or(0);
+                                println!(" JALR 0x{addr:x}->0x{destination:x}:{file}:{line}");
+                            } else {
+                                println!(" JALR to 0x{destination:x}");
+                            }
+                        }
+                    }
+                    _ => (),
+                }
             }
             Event::Interrupt(_type) => {
                 cpu_sender.send(CpuJob::CheckInterrupts).unwrap();

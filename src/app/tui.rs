@@ -1,4 +1,5 @@
 use crate::hifive1b::Hifive1b;
+use crate::instructions::Instruction;
 use crate::utils::map_to_unixsocket;
 use std::io;
 use std::sync::mpsc;
@@ -61,6 +62,7 @@ fn event_loop_tui<T: AddrBus>(
     cpu_sender: &Sender<CpuJob>,
     uart_rx: &Receiver<u8>,
     uart_tx: &Sender<u8>,
+    addr2line: &Option<addr2line::Loader>,
 ) -> anyhow::Result<()> {
     let mut input_app = ViewState::new();
 
@@ -90,6 +92,34 @@ fn event_loop_tui<T: AddrBus>(
                     }
                 }
                 Event::CpuPanic(err) => return Err(err),
+                Event::CpuObserved(addr, inst) => {
+                    if matches!(inst, Instruction::CJALR(_)) && addr == 0x20012108 {
+                        Job::AutoStepOff
+                    } else {
+                        match inst {
+                            Instruction::JAL(_rd, immediate) => {
+                                let destination = if immediate.is_negative() {
+                                    addr.wrapping_sub(immediate.unsigned_abs() as usize)
+                                } else {
+                                    addr.wrapping_add(immediate.unsigned_abs() as usize)
+                                };
+
+                                if let Some(ref addr2line) = addr2line {
+                                    if let Ok(Some(location)) = addr2line.find_location(destination as u64)
+                                    {
+                                        let file = location.file.unwrap_or("???");
+                                        let line = location.line.unwrap_or(0);
+                                        //println!("Jumping from 0x{addr:x} to 0x{destination:x}:{file}:{line}");
+                                    } else {
+                                        //println!("Jumping to 0x{destination:x}");
+                                    }
+                                }
+                            }
+                            _ => (),
+                        }
+                        Job::Idle
+                    }
+                }
                 Event::Interrupt(_type) => {
                     cpu_sender.send(CpuJob::CheckInterrupts)?;
                     Job::Idle
@@ -189,6 +219,7 @@ pub fn tui(config: &cli::Config) {
         &cpu_sender,
         &tui_reader,
         &tui_writer,
+        &config.addr2line,
     ) {
         println!("{e}");
     }
